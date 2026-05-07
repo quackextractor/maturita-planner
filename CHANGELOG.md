@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.1] - 2026-05-07
+### Added
+* Deterministic Dynamic Coloring: Subjects and badges now receive consistent, aesthetically pleasing colors based on their text content, eliminating the need for hardcoded color mappings.
+* New `get_deterministic_colors` utility to generate stable HLS-based color pairs for light and dark modes.
+
 ## [1.4.0] - 2026-05-07
 ### Added
 * Smart Metadata Parsing: Automatically extracts metadata from parentheses (e.g., difficulty, hours, iterations) and displays them as colored badges in the UI.
@@ -30,7 +35,6 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 * Scrollbar Visibility: Fixed an issue where the scrollbar was missing when needed by using the correct internal frame height check in `AutoScrollableFrame`.
 * Canvas Attribute Error: Resolved `AttributeError` by replacing the nonexistent `_parent_canvas_window` with `_create_window_id` when forcing width synchronization.
 
-
 ## [1.3.4] - 2026-05-07
 ### Fixed
 * Target Identification: Destroying the floating proxy widget prior to evaluating the drop location correctly registers the target slot, restoring drag-and-drop functionality.
@@ -48,8 +52,6 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 * Drag Visibility: Tasks now "float" above all UI elements when being dragged, preventing clipping by scrollable frame boundaries.
 * Layout Stability: Forced internal width synchronization in scrollable frames to permanently eliminate task "squishing" on resize.
 * Drag-and-Drop Reliability: Refined event interception to absolutely prevent text selection conflicts during task movement.
-
-## [1.3.1] - 2026-05-07
 
 ## [1.3.0] - 2026-05-07
 ### Added
