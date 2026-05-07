@@ -13,12 +13,10 @@ from src.planner import PlannerLogic
 class AutoScrollableFrame(ctk.CTkScrollableFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Use add="+" to avoid overwriting CTk internal bindings which breaks scrollregions
         self._parent_canvas.bind("<Configure>", self._on_canvas_configure, add="+")
         self.bind("<Configure>", lambda e: self.check_scrollbar(), add="+")
 
     def _on_canvas_configure(self, event):
-        # Force the internal frame to always match the canvas width to prevent squishing
         self._parent_canvas.itemconfig(self._create_window_id, width=event.width)
         self.check_scrollbar()
 
@@ -59,8 +57,6 @@ class DragManager:
         handle.bind("<B1-Motion>", _on_motion)
         handle.bind("<ButtonRelease-1>", _on_release)
 
-        # Explicitly bind the internal tkinter Text widget if it's a CTkTextbox
-        # This absolutely prevents the native text selection highlighting
         if isinstance(handle, ctk.CTkTextbox):
             handle._textbox.bind("<ButtonPress-1>", _on_start)
             handle._textbox.bind("<B1-Motion>", _on_motion)
@@ -68,13 +64,9 @@ class DragManager:
 
     def on_drag_start(self, event, widget, task_data):
         self.drag_data = task_data
-
-        # Calculate cursor offset relative to the widget's screen position
         self.offset_x = event.x_root - widget.winfo_rootx()
         self.offset_y = event.y_root - widget.winfo_rooty()
 
-        # Create a floating proxy widget on root to avoid clipping by parent frames
-        # We copy the original size to keep the layout feeling consistent
         w, h = widget.winfo_width(), widget.winfo_height()
         self.dragged_widget = ctk.CTkFrame(
             self.app.root,
@@ -86,8 +78,6 @@ class DragManager:
         )
         self.dragged_widget.pack_propagate(False)
 
-        # Add a simplified label to the proxy for visual feedback
-        # This is a robust way to "float" content over any other UI element
         proxy_label = ctk.CTkLabel(
             self.dragged_widget,
             text=task_data['clean_text'][:120] + "..." if len(task_data['clean_text']) > 120 else task_data['clean_text'],
@@ -96,13 +86,10 @@ class DragManager:
         )
         proxy_label.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
 
-        # Hide the original widget during drag
         widget.pack_forget()
         self.original_widget = widget
 
-        # Initial Global Positioning
         self.update_drag_position(event)
-
         self.dragged_widget.lift()
         self.app.root.configure(cursor="hand2")
 
@@ -112,7 +99,6 @@ class DragManager:
         self.update_drag_position(event)
 
     def update_drag_position(self, event):
-        # Coordinates relative to root window
         x = event.x_root - self.app.root.winfo_rootx() - self.offset_x
         y = event.y_root - self.app.root.winfo_rooty() - self.offset_y
         self.dragged_widget.place(x=x, y=y)
@@ -121,10 +107,8 @@ class DragManager:
         if not self.dragged_widget:
             return
 
-        # Determine the old parent before destroying the dragged widget
         old_parent = self.original_widget.master if hasattr(self, 'original_widget') and self.original_widget else None
 
-        # Destroy the proxy widget FIRST so it doesn't block the hit test under cursor
         self.dragged_widget.destroy()
         self.dragged_widget = None
 
@@ -140,32 +124,27 @@ class DragManager:
                     break
                 current = current.master
 
-        # Save to backend
         if slot_id:
-            self.app.logic.update_task(self.app.current_day, self.drag_data["id"], assigned_slot=slot_id)
+            self.app.logic.update_task(self.app.current_day, self.drag_data["id"], assigned_slot=slot_id, auto_save=self.app.autosave_var.get())
         else:
-            self.app.logic.update_task(self.app.current_day, self.drag_data["id"], assigned_slot=None)
+            self.app.logic.update_task(self.app.current_day, self.drag_data["id"], assigned_slot=None, auto_save=self.app.autosave_var.get())
 
         self.app.root.configure(cursor="")
 
-        # Determine the new parent
         new_parent = self.app.left_frame
         if slot_id:
             new_parent = self.app.slot_frames.get(slot_id)
 
-        # Destroy original widget
         if hasattr(self, 'original_widget') and self.original_widget and self.original_widget.winfo_exists():
             self.original_widget.destroy()
             self.original_widget = None
 
         if new_parent:
-            # Remove "Drop study block here" placeholder if moving into a slot
             if slot_id:
                 for child in new_parent.winfo_children():
                     if isinstance(child, ctk.CTkLabel) and child.cget("text") == "Drop study block here":
                         child.destroy()
 
-            # Update the task data state and recreate the widget cleanly
             self.drag_data["assigned_slot"] = slot_id
             self.app._create_task_widget(new_parent, self.drag_data)
 
@@ -253,6 +232,15 @@ class PlannerApp:
         self.save_label = ctk.CTkLabel(self.top_frame, text="Last saved: Never", text_color="gray")
         self.save_label.pack(side=tk.LEFT, padx=20)
 
+        self.autosave_var = tk.BooleanVar(value=True)
+        self.autosave_check = ctk.CTkCheckBox(self.top_frame, text="Autosave", variable=self.autosave_var, command=self.toggle_autosave)
+        self.autosave_check.pack(side=tk.LEFT, padx=(20, 5))
+
+        self.save_btn = ctk.CTkButton(self.top_frame, text="Save", command=self.manual_save, state="disabled", width=60)
+        self.default_btn_fg = self.save_btn.cget("fg_color")
+        self.save_btn.configure(fg_color="gray")
+        self.save_btn.pack(side=tk.LEFT, padx=5)
+
         ctk.CTkButton(self.top_frame, text="Major Deletion", command=self.major_deletion, fg_color="#b71c1c", hover_color="#7f0000").pack(side=tk.RIGHT, padx=5)
         ctk.CTkButton(self.top_frame, text="Reset Plan", command=self.reset_plan, fg_color="#e65100", hover_color="#b24200").pack(side=tk.RIGHT, padx=5)
         ctk.CTkButton(self.top_frame, text="Reset Day", command=self.reset_current_day, fg_color="#f57c00", hover_color="#ef6c00").pack(side=tk.RIGHT, padx=5)
@@ -284,6 +272,44 @@ class PlannerApp:
 
         self.refresh_ui()
 
+    def toggle_autosave(self):
+        if self.autosave_var.get():
+            self.save_btn.configure(state="disabled", fg_color="gray")
+            self.manual_save()
+        else:
+            self.save_btn.configure(state="normal", fg_color=self.default_btn_fg)
+
+    def manual_save(self):
+        self.logic.save_plan()
+        self.refresh_ui()
+
+    def show_confirmation(self, title, message, on_confirm):
+        dialog = ctk.CTkToplevel(self.root)
+        dialog.title(title)
+        dialog.geometry("400x200")
+        dialog.attributes("-topmost", True)
+        dialog.grab_set()
+
+        dialog.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - 200
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - 100
+        dialog.geometry(f"+{x}+{y}")
+
+        ctk.CTkLabel(dialog, text=message, font=("Arial", 14), wraplength=350).pack(pady=(30, 20), padx=20)
+
+        btn_frame = ctk.CTkFrame(dialog, fg_color="transparent")
+        btn_frame.pack(fill=tk.X, padx=20, pady=10)
+
+        def confirm():
+            dialog.destroy()
+            on_confirm()
+
+        def cancel():
+            dialog.destroy()
+
+        ctk.CTkButton(btn_frame, text="Cancel", command=cancel, fg_color="gray", width=100).pack(side=tk.LEFT, expand=True)
+        ctk.CTkButton(btn_frame, text="Confirm", command=confirm, fg_color="#b71c1c", hover_color="#7f0000", width=100).pack(side=tk.RIGHT, expand=True)
+
     def check_file_changes(self):
         try:
             if os.path.exists(self.logic.config["active_plan"]):
@@ -293,9 +319,9 @@ class PlannerApp:
                     self.days = list(self.logic.plan_data.keys())
                     if self.current_day not in self.days and self.days:
                         self.current_day = self.days[0]
-                        self.day_var.set(self.current_day)
-                        if hasattr(self, 'day_combo'):
-                            self.day_combo.configure(values=self.days)
+                    self.day_var.set(self.current_day)
+                    if hasattr(self, 'day_combo'):
+                        self.day_combo.configure(values=self.days)
                     self.refresh_ui()
         except Exception:
             pass
@@ -332,26 +358,45 @@ class PlannerApp:
 
     def reset_current_day(self):
         if self.current_day:
-            self.logic.reset_day(self.current_day)
-            self.refresh_ui()
+            self.show_confirmation(
+                "Confirm Reset Day",
+                f"Are you sure you want to reset {self.current_day}? This will remove all assigned slots and completions.",
+                self._do_reset_current_day
+            )
+
+    def _do_reset_current_day(self):
+        self.logic.reset_day(self.current_day)
+        self.refresh_ui()
 
     def reset_plan(self):
+        self.show_confirmation(
+            "Confirm Reset Plan",
+            "Are you sure you want to reset the entire plan? This will revert all progress to the original imported files.",
+            self._do_reset_plan
+        )
+
+    def _do_reset_plan(self):
         self.logic.reset_plan()
         self.days = list(self.logic.plan_data.keys())
         self.refresh_ui()
 
     def major_deletion(self):
+        self.show_confirmation(
+            "Confirm Major Deletion",
+            "Are you sure you want to delete all internal data? This will remove the active and original files completely.",
+            self._do_major_deletion
+        )
+
+    def _do_major_deletion(self):
         self.logic.major_deletion()
         self.setup_ui()
 
     def toggle_task(self, task_id, is_completed):
-        self.logic.update_task(self.current_day, task_id, completed=is_completed)
+        self.logic.update_task(self.current_day, task_id, completed=is_completed, auto_save=self.autosave_var.get())
 
         if task_id in self.task_widgets:
             txt = self.task_widgets[task_id]
             txt.configure(state="normal")
-
-            # Clear existing tags
             txt.tag_remove("completed", "1.0", tk.END)
 
             if is_completed:
