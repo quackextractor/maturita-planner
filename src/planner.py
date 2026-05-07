@@ -126,12 +126,12 @@ class PlannerLogic:
         self.plan_data = {}
         self.routine_slots = []
 
-    def update_task(self, day_key, task_id, completed=None, assigned_slot=None):
+    def update_task(self, day_key, task_id, completed=None, assigned_slot="NO_CHANGE"):
         for task in self.state.get(day_key, []):
             if task["id"] == task_id:
                 if completed is not None:
                     task["completed"] = completed
-                if assigned_slot is not False:
+                if assigned_slot != "NO_CHANGE":
                     task["assigned_slot"] = assigned_slot
                 break
         self.save_plan()

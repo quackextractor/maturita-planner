@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-05-07
+### Added
+* Save Status Indicator in the top navigation bar showing the last successful save time.
+* Open Data Folder button to quickly access the internal plan and routine storage.
+* Intuitive Day Navigation with Previous (<) and Next (>) buttons.
+* Word Wrap support for task descriptions using CTkTextbox.
+* Markdown Bold Styling support (e.g., **important**) within task descriptions.
+
+### Changed
+* Improved Task Dragging: The entire task surface (excluding the checkbox) is now draggable, removing the need for a dedicated handle.
+
+### Fixed
+* Ticked Block Moving Bug: Fixed an issue where ticking a task's checkbox would unintentionally reset its assigned routine slot.
+
 ## [1.1.0] - 2026-05-07
 ### Changed
 * Overhauled architecture to maintain two versions of the plan: the preserved original and the active version.

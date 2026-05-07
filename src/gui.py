@@ -1,6 +1,10 @@
 import tkinter as tk
 import customtkinter as ctk
 import os
+import re
+import sys
+import datetime
+import subprocess
 from tkinterdnd2 import DND_FILES
 from src.config import DEFAULT_CONFIG
 from src.planner import PlannerLogic
@@ -127,12 +131,19 @@ class PlannerApp:
         self.top_frame.pack(fill=tk.X, padx=10, pady=10)
 
         self.day_var = tk.StringVar(value=self.current_day)
+
+        ctk.CTkButton(self.top_frame, text="<", width=30, command=self.prev_day).pack(side=tk.LEFT, padx=(10, 2))
         self.day_combo = ctk.CTkComboBox(self.top_frame, variable=self.day_var, values=self.days, command=self.change_day)
-        self.day_combo.pack(side=tk.LEFT, padx=10, pady=10)
+        self.day_combo.pack(side=tk.LEFT, padx=2)
+        ctk.CTkButton(self.top_frame, text=">", width=30, command=self.next_day).pack(side=tk.LEFT, padx=(2, 10))
+
+        self.save_label = ctk.CTkLabel(self.top_frame, text="Last saved: Never", text_color="gray")
+        self.save_label.pack(side=tk.LEFT, padx=20)
 
         ctk.CTkButton(self.top_frame, text="Major Deletion", command=self.major_deletion, fg_color="#b71c1c", hover_color="#7f0000").pack(side=tk.RIGHT, padx=5)
         ctk.CTkButton(self.top_frame, text="Reset Plan", command=self.reset_plan, fg_color="#e65100", hover_color="#b24200").pack(side=tk.RIGHT, padx=5)
         ctk.CTkButton(self.top_frame, text="Reset Day", command=self.reset_current_day, fg_color="#f57c00", hover_color="#ef6c00").pack(side=tk.RIGHT, padx=5)
+        ctk.CTkButton(self.top_frame, text="Open Data Folder", command=self.open_data_folder, fg_color="gray30", hover_color="gray40").pack(side=tk.RIGHT, padx=5)
 
         self.main_pane = tk.PanedWindow(self.root, orient=tk.HORIZONTAL, bd=0, sashwidth=4)
         self.main_pane.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -172,6 +183,31 @@ class PlannerApp:
         self.current_day = choice
         self.refresh_ui()
 
+    def prev_day(self):
+        if not self.days or not self.current_day:
+            return
+        idx = self.days.index(self.current_day)
+        new_idx = (idx - 1) % len(self.days)
+        self.current_day = self.days[new_idx]
+        self.day_var.set(self.current_day)
+        self.refresh_ui()
+
+    def next_day(self):
+        if not self.days or not self.current_day:
+            return
+        idx = self.days.index(self.current_day)
+        new_idx = (idx + 1) % len(self.days)
+        self.current_day = self.days[new_idx]
+        self.day_var.set(self.current_day)
+        self.refresh_ui()
+
+    def open_data_folder(self):
+        path = self.logic.config["data_dir"]
+        if os.name == 'nt':
+            os.startfile(path)
+        else:
+            subprocess.call(['open', path] if sys.platform == 'darwin' else ['xdg-open', path])
+
     def reset_current_day(self):
         if self.current_day:
             self.logic.reset_day(self.current_day)
@@ -195,6 +231,10 @@ class PlannerApp:
             return
         if not self.current_day:
             return
+
+        if self.logic.last_saved_mtime > 0:
+            dt = datetime.datetime.fromtimestamp(self.logic.last_saved_mtime)
+            self.save_label.configure(text=f"Last saved: {dt.strftime('%H:%M:%S')}")
 
         for widget in self.left_frame.winfo_children():
             widget.destroy()
@@ -225,14 +265,30 @@ class PlannerApp:
         frame = ctk.CTkFrame(parent, fg_color=("gray90", "gray25"), border_width=1)
         frame.pack(fill=tk.X, pady=5, padx=5)
 
-        drag_handle = ctk.CTkLabel(frame, text="[::]", cursor="fleur", text_color="gray", font=("Arial", 16, "bold"))
-        drag_handle.pack(side=tk.LEFT, padx=10)
-
         var = tk.BooleanVar(value=task['completed'])
-        chk = ctk.CTkCheckBox(frame, text=task['clean_text'], variable=var, command=lambda t=task['id'], v=var: self.toggle_task(t, v.get()))
-        chk.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=10)
+        chk = ctk.CTkCheckBox(frame, text="", variable=var, width=24, command=lambda t=task['id'], v=var: self.toggle_task(t, v.get()))
+        chk.pack(side=tk.LEFT, padx=(10, 5), pady=10)
 
+        txt = ctk.CTkTextbox(frame, height=40, wrap="word", fg_color="transparent", border_width=0, font=("Arial", 13))
+        txt.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
+
+        text_content = task['clean_text']
+        parts = re.split(r'(\*\*.*?\*\*)', text_content)
+
+        txt.tag_config("bold", font=("Arial", 13, "bold"))
         if task['completed']:
-            chk.configure(text_color="gray")
+            txt.tag_config("completed", foreground="gray")
 
-        self.drag_manager.make_draggable(drag_handle, frame, task)
+        for part in parts:
+            if not part:
+                continue
+            if part.startswith("**") and part.endswith("**"):
+                clean_part = part[2:-2]
+                txt.insert(tk.END, clean_part, ("bold", "completed") if task['completed'] else "bold")
+            else:
+                txt.insert(tk.END, part, "completed" if task['completed'] else None)
+
+        txt.configure(state="disabled")
+
+        self.drag_manager.make_draggable(frame, frame, task)
+        self.drag_manager.make_draggable(txt, frame, task)
