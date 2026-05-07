@@ -17,4 +17,4 @@ Run the application:
 ```bash
 python main.py
 ```
-Place your `maturita_cas_plan_PRO3_blocks.md` and `routine.md` in the root folder. The app will generate a `data/` folder to save your daily progress.
+Place your `plan.md` and `routine.md` in the root folder. The app will generate a `data/` folder to save your daily progress.
