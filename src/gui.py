@@ -19,9 +19,18 @@ class DragManager:
         self.start_y = 0
 
     def make_draggable(self, handle, widget_to_move, task_data):
-        handle.bind("<ButtonPress-1>", lambda e: self.on_drag_start(e, widget_to_move, task_data))
-        handle.bind("<B1-Motion>", self.on_drag_motion)
-        handle.bind("<ButtonRelease-1>", self.on_drag_release)
+        handle.bind(
+            "<ButtonPress-1>",
+            lambda e=None, w=widget_to_move, t=task_data: self.on_drag_start(e, w, t) if e else None
+        )
+        handle.bind(
+            "<B1-Motion>",
+            lambda e=None: self.on_drag_motion(e) if e else None
+        )
+        handle.bind(
+            "<ButtonRelease-1>",
+            lambda e=None: self.on_drag_release(e) if e else None
+        )
 
     def on_drag_start(self, event, widget, task_data):
         self.dragged_widget = widget
@@ -145,7 +154,14 @@ class PlannerApp:
         ctk.CTkButton(self.top_frame, text="Reset Day", command=self.reset_current_day, fg_color="#f57c00", hover_color="#ef6c00").pack(side=tk.RIGHT, padx=5)
         ctk.CTkButton(self.top_frame, text="Open Data Folder", command=self.open_data_folder, fg_color="gray30", hover_color="gray40").pack(side=tk.RIGHT, padx=5)
 
-        self.main_pane = tk.PanedWindow(self.root, orient=tk.HORIZONTAL, bd=0, sashwidth=4)
+        self.main_pane = tk.PanedWindow(
+            self.root,
+            orient=tk.HORIZONTAL,
+            bd=0,
+            sashwidth=4,
+            opaqueresize=False,
+            bg="#2b2b2b"
+        )
         self.main_pane.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         self.left_container = ctk.CTkFrame(self.main_pane, fg_color="transparent")
@@ -269,10 +285,21 @@ class PlannerApp:
         chk = ctk.CTkCheckBox(frame, text="", variable=var, width=24, command=lambda t=task['id'], v=var: self.toggle_task(t, v.get()))
         chk.pack(side=tk.LEFT, padx=(10, 5), pady=10)
 
-        txt = ctk.CTkTextbox(frame, height=40, wrap="word", fg_color="transparent", border_width=0, font=("Arial", 13))
+        text_content = task['clean_text']
+        chars_per_line = 50
+        estimated_lines = (len(text_content) // chars_per_line) + 1
+        dynamic_height = max(35, estimated_lines * 20 + 10)
+
+        txt = ctk.CTkTextbox(
+            frame,
+            height=dynamic_height,
+            wrap="word",
+            fg_color="transparent",
+            border_width=0,
+            font=("Arial", 13)
+        )
         txt.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=5)
 
-        text_content = task['clean_text']
         parts = re.split(r'(\*\*.*?\*\*)', text_content)
 
         txt._textbox.tag_config("bold", font=("Arial", 13, "bold"))

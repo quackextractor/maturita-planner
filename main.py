@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import os
+import tkinter as tk
 import customtkinter as ctk
 from tkinterdnd2 import TkinterDnD
 from src.gui import PlannerApp
@@ -16,5 +17,13 @@ if __name__ == '__main__':
     ctk.set_default_color_theme("blue")
 
     root = TkinterDnDApp()
+
+    try:
+        icon_path = os.path.join(os.path.dirname(__file__), 'assets', 'icon.png')
+        icon_img = tk.PhotoImage(file=icon_path)
+        root.iconphoto(True, icon_img)
+    except Exception:
+        pass
+
     app = PlannerApp(root)
     root.mainloop()

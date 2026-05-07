@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-05-07
+### Added
+* Official application icon for both runtime window and compiled executables.
+* Dynamic height calculation for task blocks to better accommodate long descriptions.
+
+### Fixed
+* UI Corner Artifacts: Added theme-matching background to the main PanedWindow to hide rounded corner bleeding.
+* Drag Lag: Disabled opaque resizing for the main PanedWindow to ensure smooth UI performance during sidebar adjustment.
+* DragManager TypeError: Resolved a potential `TypeError` when clicking navigation buttons rapidly during UI regeneration.
+
 ## [1.2.0] - 2026-05-07
 ### Added
 * Save Status Indicator in the top navigation bar showing the last successful save time.
