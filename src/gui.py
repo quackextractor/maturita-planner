@@ -14,18 +14,24 @@ from src.planner import PlannerLogic
 
 def get_deterministic_colors(text):
     """
-    Generates a consistent, aesthetically pleasing background and border color
-    pair based on the string provided.
+    Generates a consistent color pair by snapping to a predefined list of
+    visually distinct hues to avoid muddy or near-identical generated colors.
     """
-    # Create a stable hash of the text
     hash_obj = hashlib.md5(text.lower().strip().encode('utf-8'))
     hash_int = int(hash_obj.hexdigest(), 16)
 
-    # Use the hash to pick a hue (0.0 to 1.0)
-    hue = (hash_int % 360) / 360.0
+    # Pre-selected hues that avoid the hardcoded Red, Orange, Green, Blue, Purple
+    # and are spaced exactly 15 degrees apart to guarantee visual distinctness.
+    safe_hues = [
+        45, 60, 75, 90,       # Yellow to Lime
+        150, 165, 180, 195,   # Teal to Cyan
+        300, 315, 330, 345    # Magenta to Pink
+    ]
+
+    hue_degrees = safe_hues[hash_int % len(safe_hues)]
+    hue = hue_degrees / 360.0
 
     # Generate a light color for Light Mode and a dark color for Dark Mode
-    # HLS: Hue, Lightness, Saturation
     light_rgb = colorsys.hls_to_rgb(hue, 0.85, 0.65)
     dark_rgb = colorsys.hls_to_rgb(hue, 0.35, 0.65)
 
@@ -484,8 +490,17 @@ class PlannerApp:
     def _create_task_widget(self, parent, task):
         border_col = ("gray70", "gray40")
         if task.get('subject'):
-            # Use deterministic generator for dynamic subjects
-            border_col = get_deterministic_colors(task['subject'])
+            subj = task['subject'].upper()
+            if 'PV' in subj:
+                border_col = ("#42A5F5", "#1976D2")
+            elif 'DS' in subj:
+                border_col = ("#66BB6A", "#388E3C")
+            elif 'LIT' in subj:
+                border_col = ("#AB47BC", "#8E24AA")
+            elif 'ČJ' in subj or 'CJ' in subj:
+                border_col = ("#FFA726", "#F57C00")
+            else:
+                border_col = get_deterministic_colors(task['subject'])
 
         frame = ctk.CTkFrame(parent, fg_color=("gray95", "gray22"), border_width=2, border_color=border_col)
         frame.pack(fill=tk.X, pady=5, padx=5)
@@ -536,8 +551,21 @@ class PlannerApp:
             badge_row = ctk.CTkFrame(frame, fg_color="transparent")
             badge_row.pack(fill=tk.X, padx=(38, 5), pady=(0, 10))
             for badge in task['badges']:
-                # Generate a completely generic color based on the badge text itself
-                b_color = get_deterministic_colors(badge)
+                b_lower = badge.lower()
+
+                if "hard" in b_lower:
+                    b_color = ("#FFCDD2", "#C62828")
+                elif "medium" in b_lower:
+                    b_color = ("#FFE0B2", "#E65100")
+                elif "easy" in b_lower:
+                    b_color = ("#C8E6C9", "#1B5E20")
+                elif "h" in b_lower or "hod" in b_lower:
+                    b_color = ("#B3E5FC", "#01579B")
+                elif "iterac" in b_lower:
+                    b_color = ("#D1C4E9", "#311B92")
+                else:
+                    b_color = get_deterministic_colors(badge)
+
                 text_col = ("black", "white")
 
                 lbl = ctk.CTkLabel(badge_row, text=badge, fg_color=b_color, text_color=text_col, corner_radius=6, height=22, padx=8, font=("Arial", 11, "bold"))

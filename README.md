@@ -1,14 +1,14 @@
 # Maturita Planner
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.4.1-blue.svg)](https://github.com/quackextractor/maturita-planner)
+[![Version](https://img.shields.io/badge/version-1.4.2-blue.svg)](https://github.com/quackextractor/maturita-planner)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
 A visual drag-and-drop daily planner designed specifically for managing markdown-based study schedules.
 
 ## Features
 * **Smart Metadata Parsing**: Automatically parses nested details like difficulty, hours, and iterations out of your markdown and turns them into visual, colored UI badges. 
-* **Subject Color-Coding**: Visually identifies the subject of your task (e.g., PV, DS, LIT) based on your headings and colors task borders appropriately so you can scan your schedule at a glance.
+* **Hybrid Color-Coding**: Visually identifies the subject of your task based on your headings. Standard subjects (PV, DS, LIT, CJ) and standard badges (Hard, Easy, h, iterac) are assigned specific hand-picked colors. Any unknown custom tags you add will automatically generate their own deterministic colors using math designed specifically to avoid clashing with your primary palette.
 * **Markdown Parsing**: Automatically reads your study blocks and daily routine slots without destroying document context.
 * **Drag and Drop**: Visually drag tasks into your daily routine. Tasks float cleanly over the UI for precise placement.
 * **Progress Tracking**: Tick off completed tasks and save your progress visually. State persists across application restarts.
@@ -23,7 +23,15 @@ A visual drag-and-drop daily planner designed specifically for managing markdown
 To start using the app, you need two markdown files: `plan.md` and `routine.md`. Ensure your files follow these structural examples.
 
 ### 1. `plan.md` Example
-This file dictates your study blocks. It must contain days marked with bold headers, followed by a markdown list of tasks. Non-task text like totals or dates will be safely preserved. The application will use items inside parenthesis to generate colored badges.
+This file dictates your study blocks. It must contain days marked with bold headers, followed by a markdown list of tasks. Non-task text like totals or dates will be safely preserved. 
+
+#### Task Syntax Rules
+To ensure the application correctly parses your subjects and metadata, your task lines should follow this specific structure:
+
+`* **SUBJECT_PREFIX 1:** Task Name (Badge 1, Badge 2, Badge 3) - Notes`
+
+* **Subject Prefix:** Must be placed inside the starting bold tags (e.g., `**PV 1:**` or `**DS:**`). The app extracts the uppercase letters to assign the border color.
+* **Metadata Badges:** Must be enclosed in parentheses `( )` and separated by commas. The app looks for specific keywords to assign default colors (Hard, Medium, Easy, h, iterac), while completely new words will automatically be assigned unique distinct colors like Yellow, Pink, Teal, or Lime.
 
 ```markdown
 ### Maturita Study Plan (May 07 - May 21, 2026)

@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.2] - 2026-05-07
+### Added
+* Hybrid Color-Coding: Reintroduced hand-picked, premium colors for standard subjects (PV, DS, LIT, CJ) and specific metadata keywords (Hard, Medium, Easy, h, iterac) for better visual hierarchy.
+* Improved Deterministic Generator: The dynamic color engine now snaps to a predefined list of `safe_hues` (15-degree spacing) to ensure generated colors for custom tags are visually distinct and never clash with the primary palette.
+* Task Syntax Documentation: Added a detailed breakdown of task syntax and parsing rules to the README.
+
 ## [1.4.1] - 2026-05-07
 ### Added
 * Deterministic Dynamic Coloring: Subjects and badges now receive consistent, aesthetically pleasing colors based on their text content, eliminating the need for hardcoded color mappings.
