@@ -4,10 +4,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
-## [1.3.1] - 2026-05-07
+## [1.3.4] - 2026-05-07
 ### Fixed
-* Text Selection Conflict: Dragging tasks no longer triggers native text selection highlighting within descriptions.
-* Block Layout Stability: Resolved issues where tasks could disappear or appear "squished" after being dropped into a routine slot.
+* Target Identification: Destroying the floating proxy widget prior to evaluating the drop location correctly registers the target slot, restoring drag-and-drop functionality.
+* Unnecessary Scrollbars: Restored standard framework bindings to the scrollable frame alongside active custom width resizing logic, fixing false-positive scrollbars.
+* Container Expansion: Activated "stretch=always" in the PanedWindow columns so both columns correctly utilize the total application width, solving the "half-space" look.
+
+## [1.3.3] - 2026-05-07
+### Fixed
+* Robust Dragging: Replaced the experimental reparenting logic with a floating proxy widget. This ensures tasks can "escape" their containers and float over the entire UI without being clipped or having weird offsets.
+* Layout Expansion: Adjusted the main paned window to ensure columns utilize the full available width, eliminating the "half-empty" look on larger screens.
+* Permanent Squishing Fix: Implemented active width synchronization between the scrollable canvas and its internal frame, ensuring tasks always fill the column width.
+
+## [1.3.2] - 2026-05-07
+### Fixed
+* Drag Visibility: Tasks now "float" above all UI elements when being dragged, preventing clipping by scrollable frame boundaries.
+* Layout Stability: Forced internal width synchronization in scrollable frames to permanently eliminate task "squishing" on resize.
+* Drag-and-Drop Reliability: Refined event interception to absolutely prevent text selection conflicts during task movement.
+
+## [1.3.1] - 2026-05-07
 
 ## [1.3.0] - 2026-05-07
 ### Added

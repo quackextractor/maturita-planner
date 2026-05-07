@@ -13,13 +13,25 @@ from src.planner import PlannerLogic
 class AutoScrollableFrame(ctk.CTkScrollableFrame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._parent_canvas.bind("<Configure>", self.check_scrollbar)
+        # Use add="+" to avoid overwriting CTk internal bindings which breaks scrollregions
+        self._parent_canvas.bind("<Configure>", self._on_canvas_configure, add="+")
+        self._parent_frame.bind("<Configure>", lambda e: self.check_scrollbar(), add="+")
+
+    def _on_canvas_configure(self, event):
+        # Force the internal frame to always match the canvas width to prevent squishing
+        self._parent_canvas.itemconfig(self._parent_canvas_window, width=event.width)
+        self.check_scrollbar()
 
     def check_scrollbar(self, event=None):
-        if self._parent_frame.winfo_reqheight() <= self._parent_canvas.winfo_height():
-            self._scrollbar.grid_remove()
-        else:
-            self._scrollbar.grid()
+        def _check():
+            try:
+                if self._parent_frame.winfo_reqheight() <= self._parent_canvas.winfo_height():
+                    self._scrollbar.grid_remove()
+                else:
+                    self._scrollbar.grid()
+            except Exception:
+                pass
+        self.after(10, _check)
 
 
 class DragManager:
@@ -27,8 +39,8 @@ class DragManager:
         self.app = app_instance
         self.dragged_widget = None
         self.drag_data = None
-        self.start_x = 0
-        self.start_y = 0
+        self.offset_x = 0
+        self.offset_y = 0
 
     def make_draggable(self, handle, widget_to_move, task_data):
         def _on_start(e):
@@ -55,28 +67,66 @@ class DragManager:
             handle._textbox.bind("<ButtonRelease-1>", _on_release)
 
     def on_drag_start(self, event, widget, task_data):
-        self.dragged_widget = widget
         self.drag_data = task_data
-        self.start_x = event.x_root
-        self.start_y = event.y_root
-        widget.lift()
-        widget.configure(cursor="hand2")
+
+        # Calculate cursor offset relative to the widget's screen position
+        self.offset_x = event.x_root - widget.winfo_rootx()
+        self.offset_y = event.y_root - widget.winfo_rooty()
+
+        # Create a floating proxy widget on root to avoid clipping by parent frames
+        # We copy the original size to keep the layout feeling consistent
+        w, h = widget.winfo_width(), widget.winfo_height()
+        self.dragged_widget = ctk.CTkFrame(
+            self.app.root,
+            fg_color=("gray85", "gray30"),
+            border_width=2,
+            corner_radius=6,
+            width=w,
+            height=h
+        )
+        self.dragged_widget.pack_propagate(False)
+
+        # Add a simplified label to the proxy for visual feedback
+        # This is a robust way to "float" content over any other UI element
+        proxy_label = ctk.CTkLabel(
+            self.dragged_widget,
+            text=task_data['clean_text'][:120] + "..." if len(task_data['clean_text']) > 120 else task_data['clean_text'],
+            wraplength=w - 20,
+            font=("Arial", 12)
+        )
+        proxy_label.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
+
+        # Hide the original widget during drag
+        widget.pack_forget()
+        self.original_widget = widget
+
+        # Initial Global Positioning
+        self.update_drag_position(event)
+
+        self.dragged_widget.lift()
         self.app.root.configure(cursor="hand2")
 
     def on_drag_motion(self, event):
         if not self.dragged_widget:
             return
-        dx = event.x_root - self.start_x
-        dy = event.y_root - self.start_y
-        x = self.dragged_widget.winfo_x() + dx
-        y = self.dragged_widget.winfo_y() + dy
+        self.update_drag_position(event)
+
+    def update_drag_position(self, event):
+        # Coordinates relative to root window
+        x = event.x_root - self.app.root.winfo_rootx() - self.offset_x
+        y = event.y_root - self.app.root.winfo_rooty() - self.offset_y
         self.dragged_widget.place(x=x, y=y)
-        self.start_x = event.x_root
-        self.start_y = event.y_root
 
     def on_drag_release(self, event):
         if not self.dragged_widget:
             return
+
+        # Determine the old parent before destroying the dragged widget
+        old_parent = self.original_widget.master if hasattr(self, 'original_widget') and self.original_widget else None
+
+        # Destroy the proxy widget FIRST so it doesn't block the hit test under cursor
+        self.dragged_widget.destroy()
+        self.dragged_widget = None
 
         x, y = event.x_root, event.y_root
         target = self.app.root.winfo_containing(x, y)
@@ -98,14 +148,15 @@ class DragManager:
 
         self.app.root.configure(cursor="")
 
-        # Determine the old and new parents
-        old_parent = self.dragged_widget.master
+        # Determine the new parent
         new_parent = self.app.left_frame
         if slot_id:
             new_parent = self.app.slot_frames.get(slot_id)
 
-        # Destroy the dragged widget to prevent Tkinter hierarchy errors and squishing
-        self.dragged_widget.destroy()
+        # Destroy original widget
+        if hasattr(self, 'original_widget') and self.original_widget and self.original_widget.winfo_exists():
+            self.original_widget.destroy()
+            self.original_widget = None
 
         if new_parent:
             # Remove "Drop study block here" placeholder if moving into a slot
@@ -118,13 +169,13 @@ class DragManager:
             self.drag_data["assigned_slot"] = slot_id
             self.app._create_task_widget(new_parent, self.drag_data)
 
-            # Check if old_parent (if it was a routine slot) is now empty
-            if hasattr(old_parent, "slot_id") and old_parent != new_parent:
+            if old_parent and hasattr(old_parent, "slot_id") and old_parent != new_parent:
                 remaining_tasks = [c for c in old_parent.winfo_children() if isinstance(c, ctk.CTkFrame)]
                 if not remaining_tasks:
                     ctk.CTkLabel(old_parent, text="Drop study block here", text_color="gray").pack(pady=10)
 
         self.dragged_widget = None
+        self.original_widget = None
 
 
 class PlannerApp:
@@ -220,15 +271,15 @@ class PlannerApp:
         self.main_pane.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         self.left_container = ctk.CTkFrame(self.main_pane, fg_color="transparent")
-        self.main_pane.add(self.left_container)
+        self.main_pane.add(self.left_container, minsize=350, stretch="always")
 
-        self.left_frame = AutoScrollableFrame(self.left_container, width=400, label_text="Unassigned Tasks")
+        self.left_frame = AutoScrollableFrame(self.left_container, label_text="Unassigned Tasks")
         self.left_frame.pack(fill=tk.BOTH, expand=True)
 
         self.right_container = ctk.CTkFrame(self.main_pane, fg_color="transparent")
-        self.main_pane.add(self.right_container)
+        self.main_pane.add(self.right_container, minsize=500, stretch="always")
 
-        self.right_frame = AutoScrollableFrame(self.right_container, width=600, label_text="Daily Routine")
+        self.right_frame = AutoScrollableFrame(self.right_container, label_text="Daily Routine")
         self.right_frame.pack(fill=tk.BOTH, expand=True)
 
         self.refresh_ui()
