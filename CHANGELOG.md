@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-05-07
+### Added
+* Smart Metadata Parsing: Automatically extracts metadata from parentheses (e.g., difficulty, hours, iterations) and displays them as colored badges in the UI.
+* Subject Color-Coding: Task borders are now color-coded based on the detected subject (PV, DS, LIT, ČJ/CJ) for better visual scanning.
+* Enhanced Task Layout: Redesigned task widgets with thicker, subject-aware borders and better internal spacing.
+
+### Changed
+* UI Aesthetics: Improved the overall look of task blocks with subject-specific highlights and badge systems.
+* Draggable Elements: Ensured all parts of the task widget, including badges and nested frames, are draggable targets.
+
+### Fixed
+* Task Text Display: Tasks now show cleaner text by stripping metadata badges from the main description label.
+
 ## [1.3.7] - 2026-05-07
 ### Fixed
 * Version Script Encoding: Fixed a `UnicodeDecodeError` in `update_version.py` by explicitly specifying UTF-8 encoding when reading `README.md` and `CHANGELOG.md`.

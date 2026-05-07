@@ -66,9 +66,32 @@ class PlannerLogic:
 
                     task_id = clean_text[:40]
 
+                    display_text = clean_text
+                    subject = None
+                    badges = []
+
+                    try:
+                        subj_match = re.search(r'\*\*([A-Za-zČčŘřŠšŽžÝýÁáÍíÉéÚúŮůĚě]+)', display_text)
+                        if subj_match:
+                            subject = subj_match.group(1).upper()
+
+                        badge_match = re.search(r'\(([^)]+)\)', display_text)
+                        if badge_match:
+                            badges_str = badge_match.group(1)
+                            if ',' in badges_str or any(kw in badges_str.lower() for kw in ['hard', 'medium', 'easy', 'iterac', 'h']):
+                                badges = [b.strip() for b in badges_str.split(',')]
+                                display_text = display_text.replace(badge_match.group(0), '').strip()
+                                display_text = re.sub(r'\s+-\s+', ' - ', display_text)
+                                display_text = re.sub(r'\s{2,}', ' ', display_text)
+                    except Exception:
+                        pass
+
                     self.plan_data[current_day].append({
                         "original_text": text_line,
                         "clean_text": clean_text,
+                        "display_text": display_text,
+                        "subject": subject,
+                        "badges": badges,
                         "id": task_id,
                         "completed": completed,
                         "assigned_slot": assigned_slot,

@@ -47,6 +47,20 @@ def test_load_data_with_files(temp_config):
     assert len(planner.plan_lines) == 4
 
 
+def test_load_data_with_badges(temp_config):
+    with open(temp_config["active_plan"], "w", encoding="utf-8") as f:
+        f.write("**Day 1: Math**\n")
+        f.write("* [ ] **PV 1:** Adresování (Hard, 12 iterací, 2.0h) - Focus: Theory\n")
+
+    planner = PlannerLogic(temp_config)
+    task = planner.plan_data["Day 1: Math"][0]
+
+    assert task["subject"] == "PV"
+    assert task["badges"] == ["Hard", "12 iterací", "2.0h"]
+    assert "(Hard" not in task["display_text"]
+    assert "Adresování" in task["display_text"]
+
+
 def test_update_task(temp_config):
     # Create dummy plan
     with open(temp_config["active_plan"], "w", encoding="utf-8") as f:

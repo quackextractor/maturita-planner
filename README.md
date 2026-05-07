@@ -1,12 +1,14 @@
 # Maturita Planner
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.3.7-blue.svg)](https://github.com/quackextractor/maturita-planner)
+[![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)](https://github.com/quackextractor/maturita-planner)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
 A visual drag-and-drop daily planner designed specifically for managing markdown-based study schedules.
 
 ## Features
+* **Smart Metadata Parsing**: Automatically parses nested details like difficulty, hours, and iterations out of your markdown and turns them into visual, colored UI badges. 
+* **Subject Color-Coding**: Visually identifies the subject of your task (e.g., PV, DS, LIT) based on your headings and colors task borders appropriately so you can scan your schedule at a glance.
 * **Markdown Parsing**: Automatically reads your study blocks and daily routine slots without destroying document context.
 * **Drag and Drop**: Visually drag tasks into your daily routine. Tasks float cleanly over the UI for precise placement.
 * **Progress Tracking**: Tick off completed tasks and save your progress visually. State persists across application restarts.
@@ -21,7 +23,7 @@ A visual drag-and-drop daily planner designed specifically for managing markdown
 To start using the app, you need two markdown files: `plan.md` and `routine.md`. Ensure your files follow these structural examples.
 
 ### 1. `plan.md` Example
-This file dictates your study blocks. It must contain days marked with bold headers, followed by a markdown list of tasks. Non-task text like totals or dates will be safely preserved.
+This file dictates your study blocks. It must contain days marked with bold headers, followed by a markdown list of tasks. Non-task text like totals or dates will be safely preserved. The application will use items inside parenthesis to generate colored badges.
 
 ```markdown
 ### Maturita Study Plan (May 07 - May 21, 2026)

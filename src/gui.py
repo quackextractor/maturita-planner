@@ -78,9 +78,10 @@ class DragManager:
         )
         self.dragged_widget.pack_propagate(False)
 
+        display_str = task_data.get('display_text', task_data['clean_text'])
         proxy_label = ctk.CTkLabel(
             self.dragged_widget,
-            text=task_data['clean_text'][:120] + "..." if len(task_data['clean_text']) > 120 else task_data['clean_text'],
+            text=display_str[:120] + "..." if len(display_str) > 120 else display_str,
             wraplength=w - 20,
             font=("Arial", 12)
         )
@@ -456,20 +457,36 @@ class PlannerApp:
                     self._create_task_widget(slot_frame, t)
 
     def _create_task_widget(self, parent, task):
-        frame = ctk.CTkFrame(parent, fg_color=("gray90", "gray25"), border_width=1)
+        border_col = ("gray70", "gray40")
+        if task.get('subject'):
+            subj = task['subject'].upper()
+
+            if 'PV' in subj:
+                border_col = ("#42A5F5", "#1976D2")
+            elif 'DS' in subj:
+                border_col = ("#66BB6A", "#388E3C")
+            elif 'LIT' in subj:
+                border_col = ("#AB47BC", "#8E24AA")
+            elif 'ČJ' in subj or 'CJ' in subj:
+                border_col = ("#FFA726", "#F57C00")
+
+        frame = ctk.CTkFrame(parent, fg_color=("gray95", "gray22"), border_width=2, border_color=border_col)
         frame.pack(fill=tk.X, pady=5, padx=5)
 
+        top_row = ctk.CTkFrame(frame, fg_color="transparent")
+        top_row.pack(fill=tk.X, expand=True, padx=0, pady=0)
+
         var = tk.BooleanVar(value=task['completed'])
-        chk = ctk.CTkCheckBox(frame, text="", variable=var, width=24, command=lambda t=task['id'], v=var: self.toggle_task(t, v.get()))
+        chk = ctk.CTkCheckBox(top_row, text="", variable=var, width=24, command=lambda t=task['id'], v=var: self.toggle_task(t, v.get()))
         chk.pack(side=tk.LEFT, padx=(10, 5), pady=10)
 
-        text_content = task['clean_text']
+        text_content = task.get('display_text', task['clean_text'])
         chars_per_line = 60
         estimated_lines = (len(text_content) // chars_per_line) + 1
         dynamic_height = max(35, estimated_lines * 22 + 10)
 
         txt = ctk.CTkTextbox(
-            frame,
+            top_row,
             height=dynamic_height,
             wrap="word",
             fg_color="transparent",
@@ -496,5 +513,36 @@ class PlannerApp:
         txt.configure(state="disabled")
         self.task_widgets[task['id']] = txt
 
+        badge_labels = []
+        badge_row = None
+        if task.get('badges'):
+            badge_row = ctk.CTkFrame(frame, fg_color="transparent")
+            badge_row.pack(fill=tk.X, padx=(38, 5), pady=(0, 10))
+            for badge in task['badges']:
+                b_color = ("#E0E0E0", "#424242")
+                text_col = ("black", "white")
+                b_lower = badge.lower()
+
+                if "hard" in b_lower:
+                    b_color = ("#FFCDD2", "#C62828")
+                elif "medium" in b_lower:
+                    b_color = ("#FFE0B2", "#E65100")
+                elif "easy" in b_lower:
+                    b_color = ("#C8E6C9", "#1B5E20")
+                elif "h" in b_lower or "hod" in b_lower:
+                    b_color = ("#B3E5FC", "#01579B")
+                elif "iterac" in b_lower:
+                    b_color = ("#D1C4E9", "#311B92")
+
+                lbl = ctk.CTkLabel(badge_row, text=badge, fg_color=b_color, text_color=text_col, corner_radius=6, height=22, padx=8, font=("Arial", 11, "bold"))
+                lbl.pack(side=tk.LEFT, padx=(0, 6))
+                badge_labels.append(lbl)
+
         self.drag_manager.make_draggable(frame, frame, task)
         self.drag_manager.make_draggable(txt, frame, task)
+        self.drag_manager.make_draggable(top_row, frame, task)
+
+        if badge_row:
+            self.drag_manager.make_draggable(badge_row, frame, task)
+            for b_lbl in badge_labels:
+                self.drag_manager.make_draggable(b_lbl, frame, task)
