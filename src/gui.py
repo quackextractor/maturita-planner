@@ -31,18 +31,28 @@ class DragManager:
         self.start_y = 0
 
     def make_draggable(self, handle, widget_to_move, task_data):
-        handle.bind(
-            "<ButtonPress-1>",
-            lambda e=None, w=widget_to_move, t=task_data: self.on_drag_start(e, w, t) if e else None
-        )
-        handle.bind(
-            "<B1-Motion>",
-            lambda e=None: self.on_drag_motion(e) if e else None
-        )
-        handle.bind(
-            "<ButtonRelease-1>",
-            lambda e=None: self.on_drag_release(e) if e else None
-        )
+        def _on_start(e):
+            self.on_drag_start(e, widget_to_move, task_data)
+            return "break"
+
+        def _on_motion(e):
+            self.on_drag_motion(e)
+            return "break"
+
+        def _on_release(e):
+            self.on_drag_release(e)
+            return "break"
+
+        handle.bind("<ButtonPress-1>", _on_start)
+        handle.bind("<B1-Motion>", _on_motion)
+        handle.bind("<ButtonRelease-1>", _on_release)
+
+        # Explicitly bind the internal tkinter Text widget if it's a CTkTextbox
+        # This absolutely prevents the native text selection highlighting
+        if isinstance(handle, ctk.CTkTextbox):
+            handle._textbox.bind("<ButtonPress-1>", _on_start)
+            handle._textbox.bind("<B1-Motion>", _on_motion)
+            handle._textbox.bind("<ButtonRelease-1>", _on_release)
 
     def on_drag_start(self, event, widget, task_data):
         self.dragged_widget = widget
@@ -80,33 +90,35 @@ class DragManager:
                     break
                 current = current.master
 
+        # Save to backend
         if slot_id:
             self.app.logic.update_task(self.app.current_day, self.drag_data["id"], assigned_slot=slot_id)
         else:
             self.app.logic.update_task(self.app.current_day, self.drag_data["id"], assigned_slot=None)
 
-        self.dragged_widget.configure(cursor="")
         self.app.root.configure(cursor="")
-        self.dragged_widget.place_forget()
 
-        # Reparent the widget to avoid full UI refresh
+        # Determine the old and new parents
         old_parent = self.dragged_widget.master
         new_parent = self.app.left_frame
         if slot_id:
             new_parent = self.app.slot_frames.get(slot_id)
 
-        if new_parent:
-            self.dragged_widget.pack_forget()
+        # Destroy the dragged widget to prevent Tkinter hierarchy errors and squishing
+        self.dragged_widget.destroy()
 
-            # Remove any "Drop study block here" labels if moving into a slot
+        if new_parent:
+            # Remove "Drop study block here" placeholder if moving into a slot
             if slot_id:
                 for child in new_parent.winfo_children():
                     if isinstance(child, ctk.CTkLabel) and child.cget("text") == "Drop study block here":
                         child.destroy()
 
-            self.dragged_widget.pack(in_=new_parent, fill=tk.X, pady=5, padx=5)
+            # Update the task data state and recreate the widget cleanly
+            self.drag_data["assigned_slot"] = slot_id
+            self.app._create_task_widget(new_parent, self.drag_data)
 
-            # Check if old_parent (if it was a slot) is now empty
+            # Check if old_parent (if it was a routine slot) is now empty
             if hasattr(old_parent, "slot_id") and old_parent != new_parent:
                 remaining_tasks = [c for c in old_parent.winfo_children() if isinstance(c, ctk.CTkFrame)]
                 if not remaining_tasks:
