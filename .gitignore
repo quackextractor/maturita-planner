@@ -3,3 +3,5 @@ venv/
 out/
 data/
 *.patch
+plan.md
+todo.md
