@@ -363,7 +363,7 @@ class PlannerApp:
         if self.current_day:
             self.show_confirmation(
                 "Confirm Reset Day",
-                f"Are you sure you want to reset {self.current_day}? This will remove all assigned slots and completions.",
+                f"Are you sure you want to reset {self.current_day}?\nThis will remove all assigned slots and completions.",
                 self._do_reset_current_day
             )
 
@@ -440,12 +440,15 @@ class PlannerApp:
         for slot in self.logic.routine_slots:
             slot_frame = ctk.CTkFrame(self.right_frame, fg_color=("gray85", "gray20"))
             slot_frame.pack(fill=tk.X, pady=5, padx=5)
-            slot_frame.slot_id = slot
-            self.slot_frames[slot] = slot_frame
 
-            ctk.CTkLabel(slot_frame, text=f"Time: {slot}", font=("Arial", 14, "bold")).pack(anchor=tk.W, padx=10, pady=5)
+            slot_id = slot["time"]
+            slot_frame.slot_id = slot_id
+            self.slot_frames[slot_id] = slot_frame
 
-            assigned_tasks = [t for t in tasks if t.get("assigned_slot") == slot]
+            header_text = f"{slot['time']} - {slot['desc']}" if slot.get("desc") else f"Time: {slot['time']}"
+            ctk.CTkLabel(slot_frame, text=header_text, font=("Arial", 14, "bold"), wraplength=450, justify="left").pack(anchor=tk.W, padx=10, pady=5)
+
+            assigned_tasks = [t for t in tasks if t.get("assigned_slot") == slot_id]
             if not assigned_tasks:
                 ctk.CTkLabel(slot_frame, text="Drop study block here", text_color="gray").pack(pady=10)
             else:
@@ -461,9 +464,9 @@ class PlannerApp:
         chk.pack(side=tk.LEFT, padx=(10, 5), pady=10)
 
         text_content = task['clean_text']
-        chars_per_line = 50
+        chars_per_line = 60
         estimated_lines = (len(text_content) // chars_per_line) + 1
-        dynamic_height = max(35, estimated_lines * 20 + 10)
+        dynamic_height = max(35, estimated_lines * 22 + 10)
 
         txt = ctk.CTkTextbox(
             frame,

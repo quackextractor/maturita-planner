@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+import copy
 
 
 class PlannerLogic:
@@ -8,6 +9,7 @@ class PlannerLogic:
         self.config = config
         self.plan_data = {}
         self.routine_slots = []
+        self.plan_lines = []
         self.state = {}
         self.last_saved_mtime = 0
 
@@ -26,88 +28,94 @@ class PlannerLogic:
         if os.path.exists(self.config["active_routine"]):
             with open(self.config["active_routine"], "r", encoding="utf-8") as f:
                 for line in f:
-                    match = re.search(r'\*\s+\*\*([\d:]+ to [\d:]+)\*\*(.*)', line)
+                    match = re.search(r'\*\s+\*\*([\d:]+\s*(?:to|-)\s*[\d:]+)\*\*(.*)', line)
                     if match:
                         time_slot = match.group(1).strip()
                         desc = match.group(2).strip()
                         if "Study Block" in desc:
-                            self.routine_slots.append(time_slot)
+                            desc_clean = desc.lstrip(":; -").strip()
+                            if desc_clean.endswith("."):
+                                desc_clean = desc_clean[:-1]
+                            self.routine_slots.append({"time": time_slot, "desc": desc_clean})
 
         self.plan_data = {}
+        self.plan_lines = []
         current_day = None
         if os.path.exists(self.config["active_plan"]):
             with open(self.config["active_plan"], "r", encoding="utf-8") as f:
-                for line in f:
-                    day_match = re.search(r'\*\*(Day \d+:.*?)\*\*', line)
-                    if day_match:
-                        current_day = day_match.group(1)
-                        self.plan_data[current_day] = []
-                        continue
+                self.plan_lines = f.readlines()
 
-                    if current_day and re.search(r'^\*\s*(?:\[[xX ]\]\s*)?\*\*', line.strip()):
-                        text_line = line.strip()
-                        completed = "[x]" in text_line.lower()
+            for i, line in enumerate(self.plan_lines):
+                day_match = re.search(r'\*\*(Day \d+:.*?)\*\*', line)
+                if day_match:
+                    current_day = day_match.group(1)
+                    self.plan_data[current_day] = []
+                    continue
 
-                        clean_text = re.sub(r'^\*\s*(?:\[[xX ]\]\s*)?', '', text_line)
+                if current_day and re.search(r'^\*\s*(?:\[[xX ]\]\s*)?\*\*', line.strip()):
+                    text_line = line.strip()
+                    completed = "[x]" in text_line.lower() or "[X]" in text_line
 
-                        assigned_slot = None
-                        slot_match = re.search(r'\(Assigned: ([\d:]+ to [\d:]+)\)', clean_text)
-                        if slot_match:
-                            assigned_slot = slot_match.group(1)
-                            clean_text = clean_text.replace(slot_match.group(0), '').strip()
+                    clean_text = re.sub(r'^\*\s*(?:\[[xX ]\]\s*)?', '', text_line)
 
-                        task_id = clean_text[:40]
+                    assigned_slot = None
+                    slot_match = re.search(r'\s*\(Assigned: ([\d:]+\s*(?:to|-)\s*[\d:]+)\)', clean_text)
+                    if slot_match:
+                        assigned_slot = slot_match.group(1)
+                        clean_text = clean_text.replace(slot_match.group(0), '').strip()
 
-                        self.plan_data[current_day].append({
-                            "original_text": text_line,
-                            "clean_text": clean_text,
-                            "id": task_id,
-                            "completed": completed,
-                            "assigned_slot": assigned_slot
-                        })
+                    task_id = clean_text[:40]
 
-        self.state = self.plan_data.copy()
+                    self.plan_data[current_day].append({
+                        "original_text": text_line,
+                        "clean_text": clean_text,
+                        "id": task_id,
+                        "completed": completed,
+                        "assigned_slot": assigned_slot,
+                        "line_idx": i
+                    })
+
+        self.state = copy.deepcopy(self.plan_data)
         if os.path.exists(self.config["active_plan"]):
             self.last_saved_mtime = os.path.getmtime(self.config["active_plan"])
 
     def save_plan(self):
-        if not self.state:
+        if not self.state or not hasattr(self, 'plan_lines'):
             return
+
+        for day, tasks in self.state.items():
+            for t in tasks:
+                line_idx = t["line_idx"]
+                status = "[x]" if t["completed"] else "[ ]"
+                slot_info = f" (Assigned: {t['assigned_slot']})" if t["assigned_slot"] else ""
+                self.plan_lines[line_idx] = f"* {status} {t['clean_text']}{slot_info}\n"
+
         with open(self.config["active_plan"], "w", encoding="utf-8") as f:
-            f.write("### Maturita Study Plan\n\n")
-            for day, tasks in self.state.items():
-                f.write(f"**{day}**\n")
-                for t in tasks:
-                    status = "[x]" if t["completed"] else "[ ]"
-                    slot_info = f" (Assigned: {t['assigned_slot']})" if t["assigned_slot"] else ""
-                    f.write(f"* {status} {t['clean_text']}{slot_info}\n")
-                f.write("\n")
+            f.writelines(self.plan_lines)
 
         self.last_saved_mtime = os.path.getmtime(self.config["active_plan"])
 
     def reset_day(self, day_key):
-        original_tasks = []
+        if not os.path.exists(self.config["original_plan"]):
+            return
+
+        with open(self.config["original_plan"], "r", encoding="utf-8") as f:
+            original_lines = f.readlines()
+
         current_day = None
-        if os.path.exists(self.config["original_plan"]):
-            with open(self.config["original_plan"], "r", encoding="utf-8") as f:
-                for line in f:
-                    day_match = re.search(r'\*\*(Day \d+:.*?)\*\*', line)
-                    if day_match:
-                        current_day = day_match.group(1)
-                        continue
-                    if current_day == day_key and re.search(r'^\*\s*(?:\[[xX ]\]\s*)?\*\*', line.strip()):
-                        text_line = line.strip()
-                        clean_text = re.sub(r'^\*\s*(?:\[[xX ]\]\s*)?', '', text_line)
-                        task_id = clean_text[:40]
-                        original_tasks.append({
-                            "original_text": text_line,
-                            "clean_text": clean_text,
-                            "id": task_id,
-                            "completed": False,
-                            "assigned_slot": None
-                        })
-        self.state[day_key] = original_tasks
-        self.save_plan()
+        for i, line in enumerate(original_lines):
+            day_match = re.search(r'\*\*(Day \d+:.*?)\*\*', line)
+            if day_match:
+                current_day = day_match.group(1)
+                continue
+
+            if current_day == day_key and re.search(r'^\*\s*(?:\[[xX ]\]\s*)?\*\*', line.strip()):
+                self.plan_lines[i] = line
+
+        with open(self.config["active_plan"], "w", encoding="utf-8") as f:
+            f.writelines(self.plan_lines)
+
+        self.load_data()
 
     def reset_plan(self):
         if os.path.exists(self.config["original_plan"]):
@@ -125,6 +133,7 @@ class PlannerLogic:
         self.state = {}
         self.plan_data = {}
         self.routine_slots = []
+        self.plan_lines = []
 
     def update_task(self, day_key, task_id, completed=None, assigned_slot="NO_CHANGE", auto_save=True):
         for task in self.state.get(day_key, []):

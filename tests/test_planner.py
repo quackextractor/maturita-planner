@@ -1,6 +1,6 @@
 import pytest
 import os
-import shutil
+import time
 from src.planner import PlannerLogic
 
 
@@ -27,20 +27,24 @@ def test_planner_logic_init(temp_config):
 def test_load_data_with_files(temp_config):
     # Create dummy routine
     with open(temp_config["active_routine"], "w", encoding="utf-8") as f:
-        f.write("* **08:00 to 09:30** Study Block 1\n")
-        f.write("* **10:00 to 11:30** Rest\n")
+        f.write("* **08:00 to 09:30**: Study Block 1\n")
+        f.write("* **10:00 to 11:30**: Rest\n")
 
-    # Create dummy plan
+    # Create dummy plan with extra formatting to ensure preservation
     with open(temp_config["active_plan"], "w", encoding="utf-8") as f:
+        f.write("### Plan Title\n")
         f.write("**Day 1: Math**\n")
         f.write("* [ ] **Linear Algebra**\n")
+        f.write("* *Total: 10 hours*\n")
 
     planner = PlannerLogic(temp_config)
-    assert "08:00 to 09:30" in planner.routine_slots
-    assert "10:00 to 11:30" not in planner.routine_slots
+    assert len(planner.routine_slots) == 1
+    assert planner.routine_slots[0]["time"] == "08:00 to 09:30"
+    assert planner.routine_slots[0]["desc"] == "Study Block 1"
     assert "Day 1: Math" in planner.plan_data
     assert planner.plan_data["Day 1: Math"][0]["clean_text"] == "**Linear Algebra**"
     assert planner.plan_data["Day 1: Math"][0]["completed"] is False
+    assert len(planner.plan_lines) == 4
 
 
 def test_update_task(temp_config):
@@ -72,7 +76,6 @@ def test_last_saved_mtime_update(temp_config):
     task_id = planner.plan_data["Day 1: Math"][0]["id"]
 
     # Force a wait to ensure mtime changes (filesystem precision)
-    import time
     time.sleep(0.1)
 
     planner.update_task("Day 1: Math", task_id, completed=True, auto_save=True)
