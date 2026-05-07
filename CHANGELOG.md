@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-05-07
+### Changed
+* Overhauled architecture to maintain two versions of the plan: the preserved original and the active version.
+* The application now reads and writes state directly to `active_plan.md`, natively supporting external tools like SyncThing.
+* Added a dedicated drag handle `[::]` to tasks to eliminate conflicts with the completion checkbox.
+* Added visual confirmation text during the initial drag-and-drop setup phase.
+* Added Plan Reset and Major Deletion features.
+* Removed the obsolete Export Day functionality.
+
 ## [1.0.1] - 2026-05-07
 ### Changed
 * Overhauled file import logic to copy `plan.md` and `routine.md` into an isolated internal `data/` directory upon drag-and-drop. This prevents the app from breaking if the user deletes the original external files.

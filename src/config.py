@@ -10,10 +10,11 @@ def get_bundled_config():
 
     data_dir = os.path.join(base_path, "data")
     return {
-        "plan_file": os.path.join(data_dir, "active_plan.md"),
-        "routine_file": os.path.join(data_dir, "active_routine.md"),
-        "data_dir": data_dir,
-        "state_file": os.path.join(data_dir, "app_state.json")
+        "original_plan": os.path.join(data_dir, "original_plan.md"),
+        "active_plan": os.path.join(data_dir, "active_plan.md"),
+        "original_routine": os.path.join(data_dir, "original_routine.md"),
+        "active_routine": os.path.join(data_dir, "active_routine.md"),
+        "data_dir": data_dir
     }
 
 

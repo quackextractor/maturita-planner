@@ -1,6 +1,6 @@
 import os
-import json
 import re
+import shutil
 
 
 class PlannerLogic:
@@ -9,15 +9,22 @@ class PlannerLogic:
         self.plan_data = {}
         self.routine_slots = []
         self.state = {}
+        self.last_saved_mtime = 0
 
         os.makedirs(self.config["data_dir"], exist_ok=True)
-        self.load_original_markdown()
-        self.load_state()
+        self.load_data()
 
-    def load_original_markdown(self):
+    def process_initial_drop(self, plan_file, routine_file):
+        shutil.copy(plan_file, self.config["original_plan"])
+        shutil.copy(plan_file, self.config["active_plan"])
+        shutil.copy(routine_file, self.config["original_routine"])
+        shutil.copy(routine_file, self.config["active_routine"])
+        self.load_data()
+
+    def load_data(self):
         self.routine_slots = []
-        if os.path.exists(self.config["routine_file"]):
-            with open(self.config["routine_file"], "r", encoding="utf-8") as f:
+        if os.path.exists(self.config["active_routine"]):
+            with open(self.config["active_routine"], "r", encoding="utf-8") as f:
                 for line in f:
                     match = re.search(r'\*\s+\*\*([\d:]+ to [\d:]+)\*\*(.*)', line)
                     if match:
@@ -26,10 +33,10 @@ class PlannerLogic:
                         if "Study Block" in desc:
                             self.routine_slots.append(time_slot)
 
-        current_day = None
         self.plan_data = {}
-        if os.path.exists(self.config["plan_file"]):
-            with open(self.config["plan_file"], "r", encoding="utf-8") as f:
+        current_day = None
+        if os.path.exists(self.config["active_plan"]):
+            with open(self.config["active_plan"], "r", encoding="utf-8") as f:
                 for line in f:
                     day_match = re.search(r'\*\*(Day \d+:.*?)\*\*', line)
                     if day_match:
@@ -37,32 +44,87 @@ class PlannerLogic:
                         self.plan_data[current_day] = []
                         continue
 
-                    if current_day and line.strip().startswith('* **'):
+                    if current_day and re.search(r'^\*\s*(?:\[[xX ]\]\s*)?\*\*', line.strip()):
+                        text_line = line.strip()
+                        completed = "[x]" in text_line.lower()
+
+                        clean_text = re.sub(r'^\*\s*(?:\[[xX ]\]\s*)?', '', text_line)
+
+                        assigned_slot = None
+                        slot_match = re.search(r'\(Assigned: ([\d:]+ to [\d:]+)\)', clean_text)
+                        if slot_match:
+                            assigned_slot = slot_match.group(1)
+                            clean_text = clean_text.replace(slot_match.group(0), '').strip()
+
+                        task_id = clean_text[:40]
+
                         self.plan_data[current_day].append({
-                            "original_text": line.strip(),
-                            "id": line.strip()[:20],
+                            "original_text": text_line,
+                            "clean_text": clean_text,
+                            "id": task_id,
+                            "completed": completed,
+                            "assigned_slot": assigned_slot
+                        })
+
+        self.state = self.plan_data.copy()
+        if os.path.exists(self.config["active_plan"]):
+            self.last_saved_mtime = os.path.getmtime(self.config["active_plan"])
+
+    def save_plan(self):
+        if not self.state:
+            return
+        with open(self.config["active_plan"], "w", encoding="utf-8") as f:
+            f.write("### Maturita Study Plan\n\n")
+            for day, tasks in self.state.items():
+                f.write(f"**{day}**\n")
+                for t in tasks:
+                    status = "[x]" if t["completed"] else "[ ]"
+                    slot_info = f" (Assigned: {t['assigned_slot']})" if t["assigned_slot"] else ""
+                    f.write(f"* {status} {t['clean_text']}{slot_info}\n")
+                f.write("\n")
+
+        self.last_saved_mtime = os.path.getmtime(self.config["active_plan"])
+
+    def reset_day(self, day_key):
+        original_tasks = []
+        current_day = None
+        if os.path.exists(self.config["original_plan"]):
+            with open(self.config["original_plan"], "r", encoding="utf-8") as f:
+                for line in f:
+                    day_match = re.search(r'\*\*(Day \d+:.*?)\*\*', line)
+                    if day_match:
+                        current_day = day_match.group(1)
+                        continue
+                    if current_day == day_key and re.search(r'^\*\s*(?:\[[xX ]\]\s*)?\*\*', line.strip()):
+                        text_line = line.strip()
+                        clean_text = re.sub(r'^\*\s*(?:\[[xX ]\]\s*)?', '', text_line)
+                        task_id = clean_text[:40]
+                        original_tasks.append({
+                            "original_text": text_line,
+                            "clean_text": clean_text,
+                            "id": task_id,
                             "completed": False,
                             "assigned_slot": None
                         })
+        self.state[day_key] = original_tasks
+        self.save_plan()
 
-    def load_state(self):
-        if os.path.exists(self.config["state_file"]):
-            try:
-                with open(self.config["state_file"], "r", encoding="utf-8") as f:
-                    self.state = json.load(f)
-            except Exception:
-                self.state = self.plan_data.copy()
-        else:
-            self.state = self.plan_data.copy()
+    def reset_plan(self):
+        if os.path.exists(self.config["original_plan"]):
+            shutil.copy(self.config["original_plan"], self.config["active_plan"])
+        self.load_data()
 
-    def save_state(self):
-        with open(self.config["state_file"], "w", encoding="utf-8") as f:
-            json.dump(self.state, f, indent=4)
-
-    def reset_day(self, day_key):
-        if day_key in self.plan_data:
-            self.state[day_key] = [dict(task) for task in self.plan_data[day_key]]
-            self.save_state()
+    def major_deletion(self):
+        files_to_delete = [
+            self.config["original_plan"], self.config["active_plan"],
+            self.config["original_routine"], self.config["active_routine"]
+        ]
+        for f in files_to_delete:
+            if os.path.exists(f):
+                os.remove(f)
+        self.state = {}
+        self.plan_data = {}
+        self.routine_slots = []
 
     def update_task(self, day_key, task_id, completed=None, assigned_slot=None):
         for task in self.state.get(day_key, []):
@@ -72,30 +134,4 @@ class PlannerLogic:
                 if assigned_slot is not False:
                     task["assigned_slot"] = assigned_slot
                 break
-        self.save_state()
-
-    def export_day_to_markdown(self, day_key, filepath):
-        tasks = self.state.get(day_key, [])
-        if not tasks:
-            return
-
-        with open(filepath, "w", encoding="utf-8") as f:
-            f.write(f"### Exported Plan for {day_key}\n\n")
-
-            f.write("**Daily Routine**\n")
-            for slot in self.routine_slots:
-                assigned = [t for t in tasks if t.get("assigned_slot") == slot]
-                if assigned:
-                    for t in assigned:
-                        status = "[x]" if t.get("completed") else "[ ]"
-                        clean_text = t['original_text'].replace('*', '').strip()
-                        f.write(f"* **{slot}** {status} {clean_text}\n")
-                else:
-                    f.write(f"* **{slot}** Empty\n")
-
-            f.write("\n**Unassigned Tasks**\n")
-            unassigned = [t for t in tasks if not t.get("assigned_slot")]
-            for t in unassigned:
-                status = "[x]" if t.get("completed") else "[ ]"
-                clean_text = t['original_text'].replace('*', '').strip()
-                f.write(f"* {status} {clean_text}\n")
+        self.save_plan()

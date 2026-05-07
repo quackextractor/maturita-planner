@@ -1,9 +1,7 @@
 import tkinter as tk
 import customtkinter as ctk
-import shutil
 import os
 from tkinterdnd2 import DND_FILES
-from tkinter import filedialog
 from src.config import DEFAULT_CONFIG
 from src.planner import PlannerLogic
 
@@ -16,14 +14,10 @@ class DragManager:
         self.start_x = 0
         self.start_y = 0
 
-    def make_draggable(self, widget, task_data):
-        widget.bind("<ButtonPress-1>", lambda e: self.on_drag_start(e, widget, task_data))
-        widget.bind("<B1-Motion>", self.on_drag_motion)
-        widget.bind("<ButtonRelease-1>", self.on_drag_release)
-        for child in widget.winfo_children():
-            child.bind("<ButtonPress-1>", lambda e: self.on_drag_start(e, widget, task_data))
-            child.bind("<B1-Motion>", self.on_drag_motion)
-            child.bind("<ButtonRelease-1>", self.on_drag_release)
+    def make_draggable(self, handle, widget_to_move, task_data):
+        handle.bind("<ButtonPress-1>", lambda e: self.on_drag_start(e, widget_to_move, task_data))
+        handle.bind("<B1-Motion>", self.on_drag_motion)
+        handle.bind("<ButtonRelease-1>", self.on_drag_release)
 
     def on_drag_start(self, event, widget, task_data):
         self.dragged_widget = widget
@@ -79,9 +73,13 @@ class PlannerApp:
         self.drag_manager = DragManager(self)
 
         self.setup_ui()
+        self.check_file_changes()
 
     def setup_ui(self):
-        if not os.path.exists(self.logic.config["plan_file"]) or not os.path.exists(self.logic.config["routine_file"]):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+        if not os.path.exists(self.logic.config["active_plan"]) or not os.path.exists(self.logic.config["active_routine"]):
             self.show_welcome_screen()
         else:
             self.load_main_interface()
@@ -93,6 +91,15 @@ class PlannerApp:
         ctk.CTkLabel(self.welcome_frame, text="Maturita Planner Setup", font=("Arial", 24, "bold")).pack(pady=40)
         ctk.CTkLabel(self.welcome_frame, text="Drag and drop your plan.md AND routine.md files into this window.").pack(pady=10)
 
+        self.plan_status = ctk.CTkLabel(self.welcome_frame, text="Plan file: Missing", text_color="red")
+        self.plan_status.pack(pady=5)
+
+        self.routine_status = ctk.CTkLabel(self.welcome_frame, text="Routine file: Missing", text_color="red")
+        self.routine_status.pack(pady=5)
+
+        self.dropped_plan = None
+        self.dropped_routine = None
+
         self.welcome_frame.drop_target_register(DND_FILES)
         self.welcome_frame.dnd_bind('<<Drop>>', self.handle_file_drop)
 
@@ -102,15 +109,15 @@ class PlannerApp:
             f_path = f.strip("{}")
             filename = os.path.basename(f_path).lower()
             if "plan" in filename:
-                shutil.copy(f_path, self.logic.config["plan_file"])
+                self.dropped_plan = f_path
+                self.plan_status.configure(text=f"Plan loaded: {filename}", text_color="green")
             elif "routine" in filename:
-                shutil.copy(f_path, self.logic.config["routine_file"])
+                self.dropped_routine = f_path
+                self.routine_status.configure(text=f"Routine loaded: {filename}", text_color="green")
 
-        if os.path.exists(self.logic.config["plan_file"]) and os.path.exists(self.logic.config["routine_file"]):
-            self.welcome_frame.destroy()
-            self.logic.load_original_markdown()
-            self.logic.load_state()
-            self.load_main_interface()
+        if self.dropped_plan and self.dropped_routine:
+            self.logic.process_initial_drop(self.dropped_plan, self.dropped_routine)
+            self.setup_ui()
 
     def load_main_interface(self):
         self.days = list(self.logic.plan_data.keys())
@@ -123,8 +130,9 @@ class PlannerApp:
         self.day_combo = ctk.CTkComboBox(self.top_frame, variable=self.day_var, values=self.days, command=self.change_day)
         self.day_combo.pack(side=tk.LEFT, padx=10, pady=10)
 
-        ctk.CTkButton(self.top_frame, text="Export Day", command=self.export_current_day).pack(side=tk.RIGHT, padx=10)
-        ctk.CTkButton(self.top_frame, text="Reset Day", command=self.reset_current_day, fg_color="#b71c1c", hover_color="#7f0000").pack(side=tk.RIGHT, padx=10)
+        ctk.CTkButton(self.top_frame, text="Major Deletion", command=self.major_deletion, fg_color="#b71c1c", hover_color="#7f0000").pack(side=tk.RIGHT, padx=5)
+        ctk.CTkButton(self.top_frame, text="Reset Plan", command=self.reset_plan, fg_color="#e65100", hover_color="#b24200").pack(side=tk.RIGHT, padx=5)
+        ctk.CTkButton(self.top_frame, text="Reset Day", command=self.reset_current_day, fg_color="#f57c00", hover_color="#ef6c00").pack(side=tk.RIGHT, padx=5)
 
         self.main_pane = tk.PanedWindow(self.root, orient=tk.HORIZONTAL, bd=0, sashwidth=4)
         self.main_pane.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
@@ -143,6 +151,23 @@ class PlannerApp:
 
         self.refresh_ui()
 
+    def check_file_changes(self):
+        try:
+            if os.path.exists(self.logic.config["active_plan"]):
+                current_mtime = os.path.getmtime(self.logic.config["active_plan"])
+                if current_mtime > self.logic.last_saved_mtime:
+                    self.logic.load_data()
+                    self.days = list(self.logic.plan_data.keys())
+                    if self.current_day not in self.days and self.days:
+                        self.current_day = self.days[0]
+                        self.day_var.set(self.current_day)
+                        if hasattr(self, 'day_combo'):
+                            self.day_combo.configure(values=self.days)
+                    self.refresh_ui()
+        except Exception:
+            pass
+        self.root.after(2000, self.check_file_changes)
+
     def change_day(self, choice):
         self.current_day = choice
         self.refresh_ui()
@@ -152,18 +177,22 @@ class PlannerApp:
             self.logic.reset_day(self.current_day)
             self.refresh_ui()
 
-    def export_current_day(self):
-        if not self.current_day:
-            return
-        filepath = filedialog.asksaveasfilename(defaultextension=".md", initialfile=f"Export_{self.current_day}.md", title="Export Day to Markdown", filetypes=[("Markdown files", "*.md")])
-        if filepath:
-            self.logic.export_day_to_markdown(self.current_day, filepath)
+    def reset_plan(self):
+        self.logic.reset_plan()
+        self.days = list(self.logic.plan_data.keys())
+        self.refresh_ui()
+
+    def major_deletion(self):
+        self.logic.major_deletion()
+        self.setup_ui()
 
     def toggle_task(self, task_id, is_completed):
         self.logic.update_task(self.current_day, task_id, completed=is_completed)
         self.refresh_ui()
 
     def refresh_ui(self):
+        if not hasattr(self, 'left_frame'):
+            return
         if not self.current_day:
             return
 
@@ -196,13 +225,14 @@ class PlannerApp:
         frame = ctk.CTkFrame(parent, fg_color=("gray90", "gray25"), border_width=1)
         frame.pack(fill=tk.X, pady=5, padx=5)
 
-        clean_text = task['original_text'].replace('*', '').strip()
+        drag_handle = ctk.CTkLabel(frame, text="[::]", cursor="fleur", text_color="gray", font=("Arial", 16, "bold"))
+        drag_handle.pack(side=tk.LEFT, padx=10)
 
         var = tk.BooleanVar(value=task['completed'])
-        chk = ctk.CTkCheckBox(frame, text=clean_text, variable=var, command=lambda t=task['id'], v=var: self.toggle_task(t, v.get()))
-        chk.pack(anchor=tk.W, padx=10, pady=10)
+        chk = ctk.CTkCheckBox(frame, text=task['clean_text'], variable=var, command=lambda t=task['id'], v=var: self.toggle_task(t, v.get()))
+        chk.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5, pady=10)
 
         if task['completed']:
             chk.configure(text_color="gray")
 
-        self.drag_manager.make_draggable(frame, task)
+        self.drag_manager.make_draggable(drag_handle, frame, task)
