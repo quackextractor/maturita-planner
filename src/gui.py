@@ -15,17 +15,17 @@ class AutoScrollableFrame(ctk.CTkScrollableFrame):
         super().__init__(*args, **kwargs)
         # Use add="+" to avoid overwriting CTk internal bindings which breaks scrollregions
         self._parent_canvas.bind("<Configure>", self._on_canvas_configure, add="+")
-        self._parent_frame.bind("<Configure>", lambda e: self.check_scrollbar(), add="+")
+        self.bind("<Configure>", lambda e: self.check_scrollbar(), add="+")
 
     def _on_canvas_configure(self, event):
         # Force the internal frame to always match the canvas width to prevent squishing
-        self._parent_canvas.itemconfig(self._parent_canvas_window, width=event.width)
+        self._parent_canvas.itemconfig(self._create_window_id, width=event.width)
         self.check_scrollbar()
 
     def check_scrollbar(self, event=None):
         def _check():
             try:
-                if self._parent_frame.winfo_reqheight() <= self._parent_canvas.winfo_height():
+                if self.winfo_reqheight() <= self._parent_canvas.winfo_height():
                     self._scrollbar.grid_remove()
                 else:
                     self._scrollbar.grid()

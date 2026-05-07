@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.5] - 2026-05-07
+### Fixed
+* Scrollbar Visibility: Fixed an issue where the scrollbar was missing when needed by using the correct internal frame height check in `AutoScrollableFrame`.
+* Canvas Attribute Error: Resolved `AttributeError` by replacing the nonexistent `_parent_canvas_window` with `_create_window_id` when forcing width synchronization.
+
+
 ## [1.3.4] - 2026-05-07
 ### Fixed
 * Target Identification: Destroying the floating proxy widget prior to evaluating the drop location correctly registers the target slot, restoring drag-and-drop functionality.
