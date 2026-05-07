@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.6] - 2026-05-07
+### Fixed
+* Autosave Indicator: The "Last saved" timestamp now correctly updates in the UI immediately after an autosave event triggered by task completion or drag-and-drop operations.
+
 ## [1.3.5] - 2026-05-07
 ### Fixed
 * Scrollbar Visibility: Fixed an issue where the scrollbar was missing when needed by using the correct internal frame height check in `AutoScrollableFrame`.

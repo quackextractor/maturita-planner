@@ -58,3 +58,24 @@ def test_update_task(temp_config):
     # Verify file saved
     planner.load_data()
     assert planner.plan_data["Day 1: Math"][0]["completed"] is True
+
+
+def test_last_saved_mtime_update(temp_config):
+    with open(temp_config["active_plan"], "w", encoding="utf-8") as f:
+        f.write("**Day 1: Math**\n")
+        f.write("* [ ] **Linear Algebra**\n")
+
+    planner = PlannerLogic(temp_config)
+    initial_mtime = planner.last_saved_mtime
+    assert initial_mtime > 0
+
+    task_id = planner.plan_data["Day 1: Math"][0]["id"]
+
+    # Force a wait to ensure mtime changes (filesystem precision)
+    import time
+    time.sleep(0.1)
+
+    planner.update_task("Day 1: Math", task_id, completed=True, auto_save=True)
+
+    assert planner.last_saved_mtime > initial_mtime
+    assert planner.last_saved_mtime == os.path.getmtime(temp_config["active_plan"])

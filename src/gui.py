@@ -129,6 +129,9 @@ class DragManager:
         else:
             self.app.logic.update_task(self.app.current_day, self.drag_data["id"], assigned_slot=None, auto_save=self.app.autosave_var.get())
 
+        if self.app.autosave_var.get():
+            self.app.update_timestamp_label()
+
         self.app.root.configure(cursor="")
 
         new_parent = self.app.left_frame
@@ -393,6 +396,8 @@ class PlannerApp:
 
     def toggle_task(self, task_id, is_completed):
         self.logic.update_task(self.current_day, task_id, completed=is_completed, auto_save=self.autosave_var.get())
+        if self.autosave_var.get():
+            self.update_timestamp_label()
 
         if task_id in self.task_widgets:
             txt = self.task_widgets[task_id]
@@ -405,15 +410,18 @@ class PlannerApp:
 
             txt.configure(state="disabled")
 
+    def update_timestamp_label(self):
+        if self.logic.last_saved_mtime > 0:
+            dt = datetime.datetime.fromtimestamp(self.logic.last_saved_mtime)
+            self.save_label.configure(text=f"Last saved: {dt.strftime('%H:%M:%S')}")
+
     def refresh_ui(self):
         if not hasattr(self, 'left_frame'):
             return
         if not self.current_day:
             return
 
-        if self.logic.last_saved_mtime > 0:
-            dt = datetime.datetime.fromtimestamp(self.logic.last_saved_mtime)
-            self.save_label.configure(text=f"Last saved: {dt.strftime('%H:%M:%S')}")
+        self.update_timestamp_label()
 
         for widget in self.left_frame.winfo_children():
             widget.destroy()
