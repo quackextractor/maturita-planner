@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/
 
 ### Fixed
 * Ticked Block Moving Bug: Fixed an issue where ticking a task's checkbox would unintentionally reset its assigned routine slot.
+* CTkTextbox Scaling Crash: Resolved an `AttributeError` when applying bold fonts in task descriptions by bypassing `CustomTkinter` scaling restrictions for specific text tags.
 
 ## [1.1.0] - 2026-05-07
 ### Changed

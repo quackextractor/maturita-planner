@@ -275,7 +275,7 @@ class PlannerApp:
         text_content = task['clean_text']
         parts = re.split(r'(\*\*.*?\*\*)', text_content)
 
-        txt.tag_config("bold", font=("Arial", 13, "bold"))
+        txt._textbox.tag_config("bold", font=("Arial", 13, "bold"))
         if task['completed']:
             txt.tag_config("completed", foreground="gray")
 
