@@ -15,7 +15,7 @@ class PlannerLogic:
         self.load_state()
 
     def load_original_markdown(self):
-        # Parse Routine
+        self.routine_slots = []
         if os.path.exists(self.config["routine_file"]):
             with open(self.config["routine_file"], "r", encoding="utf-8") as f:
                 for line in f:
@@ -26,8 +26,8 @@ class PlannerLogic:
                         if "Study Block" in desc:
                             self.routine_slots.append(time_slot)
 
-        # Parse Plan
         current_day = None
+        self.plan_data = {}
         if os.path.exists(self.config["plan_file"]):
             with open(self.config["plan_file"], "r", encoding="utf-8") as f:
                 for line in f:
@@ -73,3 +73,29 @@ class PlannerLogic:
                     task["assigned_slot"] = assigned_slot
                 break
         self.save_state()
+
+    def export_day_to_markdown(self, day_key, filepath):
+        tasks = self.state.get(day_key, [])
+        if not tasks:
+            return
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(f"### Exported Plan for {day_key}\n\n")
+
+            f.write("**Daily Routine**\n")
+            for slot in self.routine_slots:
+                assigned = [t for t in tasks if t.get("assigned_slot") == slot]
+                if assigned:
+                    for t in assigned:
+                        status = "[x]" if t.get("completed") else "[ ]"
+                        clean_text = t['original_text'].replace('*', '').strip()
+                        f.write(f"* **{slot}** {status} {clean_text}\n")
+                else:
+                    f.write(f"* **{slot}** Empty\n")
+
+            f.write("\n**Unassigned Tasks**\n")
+            unassigned = [t for t in tasks if not t.get("assigned_slot")]
+            for t in unassigned:
+                status = "[x]" if t.get("completed") else "[ ]"
+                clean_text = t['original_text'].replace('*', '').strip()
+                f.write(f"* {status} {clean_text}\n")

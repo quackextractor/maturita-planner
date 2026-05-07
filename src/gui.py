@@ -1,5 +1,9 @@
 import tkinter as tk
 import customtkinter as ctk
+import shutil
+import os
+from tkinterdnd2 import DND_FILES
+from tkinter import filedialog
 from src.config import DEFAULT_CONFIG
 from src.planner import PlannerLogic
 
@@ -48,7 +52,6 @@ class DragManager:
 
         slot_id = None
         if target:
-            # Check if dropped in a routine slot frame
             current = target
             while current:
                 if hasattr(current, "slot_id"):
@@ -59,7 +62,6 @@ class DragManager:
         if slot_id:
             self.app.logic.update_task(self.app.current_day, self.drag_data["id"], assigned_slot=slot_id)
         else:
-            # Dropped outside, unassign
             self.app.logic.update_task(self.app.current_day, self.drag_data["id"], assigned_slot=None)
 
         self.dragged_widget.place_forget()
@@ -76,13 +78,44 @@ class PlannerApp:
         self.logic = PlannerLogic(DEFAULT_CONFIG)
         self.drag_manager = DragManager(self)
 
-        self.days = list(self.logic.plan_data.keys())
-        self.current_day = self.days[0] if self.days else None
-
         self.setup_ui()
 
     def setup_ui(self):
-        # Top Bar
+        if not os.path.exists(self.logic.config["plan_file"]) or not os.path.exists(self.logic.config["routine_file"]):
+            self.show_welcome_screen()
+        else:
+            self.load_main_interface()
+
+    def show_welcome_screen(self):
+        self.welcome_frame = ctk.CTkFrame(self.root)
+        self.welcome_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+
+        ctk.CTkLabel(self.welcome_frame, text="Maturita Planner Setup", font=("Arial", 24, "bold")).pack(pady=40)
+        ctk.CTkLabel(self.welcome_frame, text="Drag and drop your plan.md AND routine.md files into this window.").pack(pady=10)
+
+        self.welcome_frame.drop_target_register(DND_FILES)
+        self.welcome_frame.dnd_bind('<<Drop>>', self.handle_file_drop)
+
+    def handle_file_drop(self, event):
+        files = self.root.tk.splitlist(event.data)
+        for f in files:
+            f_path = f.strip("{}")
+            filename = os.path.basename(f_path).lower()
+            if "plan" in filename:
+                shutil.copy(f_path, self.logic.config["plan_file"])
+            elif "routine" in filename:
+                shutil.copy(f_path, self.logic.config["routine_file"])
+
+        if os.path.exists(self.logic.config["plan_file"]) and os.path.exists(self.logic.config["routine_file"]):
+            self.welcome_frame.destroy()
+            self.logic.load_original_markdown()
+            self.logic.load_state()
+            self.load_main_interface()
+
+    def load_main_interface(self):
+        self.days = list(self.logic.plan_data.keys())
+        self.current_day = self.days[0] if self.days else None
+
         self.top_frame = ctk.CTkFrame(self.root, height=50)
         self.top_frame.pack(fill=tk.X, padx=10, pady=10)
 
@@ -90,20 +123,18 @@ class PlannerApp:
         self.day_combo = ctk.CTkComboBox(self.top_frame, variable=self.day_var, values=self.days, command=self.change_day)
         self.day_combo.pack(side=tk.LEFT, padx=10, pady=10)
 
+        ctk.CTkButton(self.top_frame, text="Export Day", command=self.export_current_day).pack(side=tk.RIGHT, padx=10)
         ctk.CTkButton(self.top_frame, text="Reset Day", command=self.reset_current_day, fg_color="#b71c1c", hover_color="#7f0000").pack(side=tk.RIGHT, padx=10)
 
-        # Main Layout
         self.main_pane = tk.PanedWindow(self.root, orient=tk.HORIZONTAL, bd=0, sashwidth=4)
         self.main_pane.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Left: Unassigned Tasks Wrapper
         self.left_container = ctk.CTkFrame(self.main_pane, fg_color="transparent")
         self.main_pane.add(self.left_container)
 
         self.left_frame = ctk.CTkScrollableFrame(self.left_container, width=400, label_text="Unassigned Tasks")
         self.left_frame.pack(fill=tk.BOTH, expand=True)
 
-        # Right: Daily Routine Wrapper
         self.right_container = ctk.CTkFrame(self.main_pane, fg_color="transparent")
         self.main_pane.add(self.right_container)
 
@@ -121,6 +152,13 @@ class PlannerApp:
             self.logic.reset_day(self.current_day)
             self.refresh_ui()
 
+    def export_current_day(self):
+        if not self.current_day:
+            return
+        filepath = filedialog.asksaveasfilename(defaultextension=".md", initialfile=f"Export_{self.current_day}.md", title="Export Day to Markdown", filetypes=[("Markdown files", "*.md")])
+        if filepath:
+            self.logic.export_day_to_markdown(self.current_day, filepath)
+
     def toggle_task(self, task_id, is_completed):
         self.logic.update_task(self.current_day, task_id, completed=is_completed)
         self.refresh_ui()
@@ -129,7 +167,6 @@ class PlannerApp:
         if not self.current_day:
             return
 
-        # Clear existing widgets
         for widget in self.left_frame.winfo_children():
             widget.destroy()
         for widget in self.right_frame.winfo_children():
@@ -138,15 +175,13 @@ class PlannerApp:
         tasks = self.logic.state.get(self.current_day, [])
         unassigned_tasks = [t for t in tasks if not t.get("assigned_slot")]
 
-        # Render Unassigned
         for t in unassigned_tasks:
             self._create_task_widget(self.left_frame, t)
 
-        # Render Routine Slots
         for slot in self.logic.routine_slots:
             slot_frame = ctk.CTkFrame(self.right_frame, fg_color=("gray85", "gray20"))
             slot_frame.pack(fill=tk.X, pady=5, padx=5)
-            slot_frame.slot_id = slot  # Mark for drop target
+            slot_frame.slot_id = slot
 
             ctk.CTkLabel(slot_frame, text=f"Time: {slot}", font=("Arial", 14, "bold")).pack(anchor=tk.W, padx=10, pady=5)
 
@@ -161,12 +196,10 @@ class PlannerApp:
         frame = ctk.CTkFrame(parent, fg_color=("gray90", "gray25"), border_width=1)
         frame.pack(fill=tk.X, pady=5, padx=5)
 
-        # Strip markdown syntax for display
         clean_text = task['original_text'].replace('*', '').strip()
 
         var = tk.BooleanVar(value=task['completed'])
-        chk = ctk.CTkCheckBox(frame, text=clean_text, variable=var,
-                              command=lambda t=task['id'], v=var: self.toggle_task(t, v.get()))
+        chk = ctk.CTkCheckBox(frame, text=clean_text, variable=var, command=lambda t=task['id'], v=var: self.toggle_task(t, v.get()))
         chk.pack(anchor=tk.W, padx=10, pady=10)
 
         if task['completed']:
