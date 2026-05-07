@@ -96,13 +96,19 @@ class PlannerApp:
         self.main_pane = tk.PanedWindow(self.root, orient=tk.HORIZONTAL, bd=0, sashwidth=4)
         self.main_pane.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
-        # Left: Unassigned Tasks
-        self.left_frame = ctk.CTkScrollableFrame(self.main_pane, width=400, label_text="Unassigned Tasks")
-        self.main_pane.add(self.left_frame)
+        # Left: Unassigned Tasks Wrapper
+        self.left_container = ctk.CTkFrame(self.main_pane, fg_color="transparent")
+        self.main_pane.add(self.left_container)
 
-        # Right: Daily Routine
-        self.right_frame = ctk.CTkScrollableFrame(self.main_pane, width=600, label_text="Daily Routine")
-        self.main_pane.add(self.right_frame)
+        self.left_frame = ctk.CTkScrollableFrame(self.left_container, width=400, label_text="Unassigned Tasks")
+        self.left_frame.pack(fill=tk.BOTH, expand=True)
+
+        # Right: Daily Routine Wrapper
+        self.right_container = ctk.CTkFrame(self.main_pane, fg_color="transparent")
+        self.main_pane.add(self.right_container)
+
+        self.right_frame = ctk.CTkScrollableFrame(self.right_container, width=600, label_text="Daily Routine")
+        self.right_frame.pack(fill=tk.BOTH, expand=True)
 
         self.refresh_ui()
 
