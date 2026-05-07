@@ -1,7 +1,7 @@
 # Maturita Planner
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.2.1-blue.svg)](https://github.com/quackextractor/maturita-planner)
+[![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)](https://github.com/quackextractor/maturita-planner)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
 A visual drag-and-drop daily planner designed specifically for managing markdown-based study schedules.

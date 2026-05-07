@@ -10,6 +10,18 @@ from src.config import DEFAULT_CONFIG
 from src.planner import PlannerLogic
 
 
+class AutoScrollableFrame(ctk.CTkScrollableFrame):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._parent_canvas.bind("<Configure>", self.check_scrollbar)
+
+    def check_scrollbar(self, event=None):
+        if self._parent_frame.winfo_reqheight() <= self._parent_canvas.winfo_height():
+            self._scrollbar.grid_remove()
+        else:
+            self._scrollbar.grid()
+
+
 class DragManager:
     def __init__(self, app_instance):
         self.app = app_instance
@@ -38,6 +50,8 @@ class DragManager:
         self.start_x = event.x_root
         self.start_y = event.y_root
         widget.lift()
+        widget.configure(cursor="hand2")
+        self.app.root.configure(cursor="hand2")
 
     def on_drag_motion(self, event):
         if not self.dragged_widget:
@@ -71,9 +85,34 @@ class DragManager:
         else:
             self.app.logic.update_task(self.app.current_day, self.drag_data["id"], assigned_slot=None)
 
+        self.dragged_widget.configure(cursor="")
+        self.app.root.configure(cursor="")
         self.dragged_widget.place_forget()
+
+        # Reparent the widget to avoid full UI refresh
+        old_parent = self.dragged_widget.master
+        new_parent = self.app.left_frame
+        if slot_id:
+            new_parent = self.app.slot_frames.get(slot_id)
+
+        if new_parent:
+            self.dragged_widget.pack_forget()
+
+            # Remove any "Drop study block here" labels if moving into a slot
+            if slot_id:
+                for child in new_parent.winfo_children():
+                    if isinstance(child, ctk.CTkLabel) and child.cget("text") == "Drop study block here":
+                        child.destroy()
+
+            self.dragged_widget.pack(in_=new_parent, fill=tk.X, pady=5, padx=5)
+
+            # Check if old_parent (if it was a slot) is now empty
+            if hasattr(old_parent, "slot_id") and old_parent != new_parent:
+                remaining_tasks = [c for c in old_parent.winfo_children() if isinstance(c, ctk.CTkFrame)]
+                if not remaining_tasks:
+                    ctk.CTkLabel(old_parent, text="Drop study block here", text_color="gray").pack(pady=10)
+
         self.dragged_widget = None
-        self.app.refresh_ui()
 
 
 class PlannerApp:
@@ -84,6 +123,8 @@ class PlannerApp:
 
         self.logic = PlannerLogic(DEFAULT_CONFIG)
         self.drag_manager = DragManager(self)
+        self.task_widgets = {}
+        self.slot_frames = {}
 
         self.setup_ui()
         self.check_file_changes()
@@ -158,22 +199,24 @@ class PlannerApp:
             self.root,
             orient=tk.HORIZONTAL,
             bd=0,
-            sashwidth=4,
+            sashwidth=8,
+            sashrelief=tk.RIDGE,
+            sashcursor="sb_h_double_arrow",
             opaqueresize=False,
-            bg="#2b2b2b"
+            bg="#4a4a4a"
         )
         self.main_pane.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
 
         self.left_container = ctk.CTkFrame(self.main_pane, fg_color="transparent")
         self.main_pane.add(self.left_container)
 
-        self.left_frame = ctk.CTkScrollableFrame(self.left_container, width=400, label_text="Unassigned Tasks")
+        self.left_frame = AutoScrollableFrame(self.left_container, width=400, label_text="Unassigned Tasks")
         self.left_frame.pack(fill=tk.BOTH, expand=True)
 
         self.right_container = ctk.CTkFrame(self.main_pane, fg_color="transparent")
         self.main_pane.add(self.right_container)
 
-        self.right_frame = ctk.CTkScrollableFrame(self.right_container, width=600, label_text="Daily Routine")
+        self.right_frame = AutoScrollableFrame(self.right_container, width=600, label_text="Daily Routine")
         self.right_frame.pack(fill=tk.BOTH, expand=True)
 
         self.refresh_ui()
@@ -240,7 +283,19 @@ class PlannerApp:
 
     def toggle_task(self, task_id, is_completed):
         self.logic.update_task(self.current_day, task_id, completed=is_completed)
-        self.refresh_ui()
+
+        if task_id in self.task_widgets:
+            txt = self.task_widgets[task_id]
+            txt.configure(state="normal")
+
+            # Clear existing tags
+            txt.tag_remove("completed", "1.0", tk.END)
+
+            if is_completed:
+                txt.tag_add("completed", "1.0", tk.END)
+                txt.tag_config("completed", foreground="gray")
+
+            txt.configure(state="disabled")
 
     def refresh_ui(self):
         if not hasattr(self, 'left_frame'):
@@ -257,6 +312,9 @@ class PlannerApp:
         for widget in self.right_frame.winfo_children():
             widget.destroy()
 
+        self.task_widgets = {}
+        self.slot_frames = {}
+
         tasks = self.logic.state.get(self.current_day, [])
         unassigned_tasks = [t for t in tasks if not t.get("assigned_slot")]
 
@@ -267,6 +325,7 @@ class PlannerApp:
             slot_frame = ctk.CTkFrame(self.right_frame, fg_color=("gray85", "gray20"))
             slot_frame.pack(fill=tk.X, pady=5, padx=5)
             slot_frame.slot_id = slot
+            self.slot_frames[slot] = slot_frame
 
             ctk.CTkLabel(slot_frame, text=f"Time: {slot}", font=("Arial", 14, "bold")).pack(anchor=tk.W, padx=10, pady=5)
 
@@ -316,6 +375,7 @@ class PlannerApp:
                 txt.insert(tk.END, part, "completed" if task['completed'] else None)
 
         txt.configure(state="disabled")
+        self.task_widgets[task['id']] = txt
 
         self.drag_manager.make_draggable(frame, frame, task)
         self.drag_manager.make_draggable(txt, frame, task)

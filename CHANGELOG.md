@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-05-07
+### Added
+* Auto-hiding scrollbars: Sidebar and Main view scrollbars now only appear when content exceeds the visible window height.
+* Drag Feedback: Mouse cursor now changes to a "hand" pointer during task dragging for improved interaction clarity.
+* Unit Testing: Introduced automated testing suite for core logic to ensure stability.
+
+### Changed
+* Flash-Free UI Updates: Task completion and drag-and-drop operations now perform targeted updates instead of full UI regeneration.
+* Enhanced UI Separator: The adjustable divider between columns is now wider (8px) with a 3D relief and specialized hover cursor.
+
 ## [1.2.1] - 2026-05-07
 ### Added
 * Official application icon for both runtime window and compiled executables.
