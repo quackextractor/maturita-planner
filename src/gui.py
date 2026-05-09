@@ -302,10 +302,10 @@ class PlannerApp:
         self.save_btn.configure(fg_color="gray")
         self.save_btn.pack(side=tk.LEFT, padx=5)
 
-        ctk.CTkButton(self.top_frame, text="Major Deletion", command=self.major_deletion, fg_color="#b71c1c", hover_color="#7f0000").pack(side=tk.RIGHT, padx=5)
-        ctk.CTkButton(self.top_frame, text="Reset Plan", command=self.reset_plan, fg_color="#e65100", hover_color="#b24200").pack(side=tk.RIGHT, padx=5)
-        ctk.CTkButton(self.top_frame, text="Reset Day", command=self.reset_current_day, fg_color="#f57c00", hover_color="#ef6c00").pack(side=tk.RIGHT, padx=5)
-        ctk.CTkButton(self.top_frame, text="Data", command=self.open_data_folder, fg_color="gray30", hover_color="gray40").pack(side=tk.RIGHT, padx=5)
+        ctk.CTkButton(self.top_frame, text="Major Deletion", command=self.major_deletion, fg_color="#b71c1c", hover_color="#7f0000", width=0).pack(side=tk.RIGHT, padx=5)
+        ctk.CTkButton(self.top_frame, text="Reset Plan", command=self.reset_plan, fg_color="#e65100", hover_color="#b24200", width=0).pack(side=tk.RIGHT, padx=5)
+        ctk.CTkButton(self.top_frame, text="Reset Day", command=self.reset_current_day, fg_color="#f57c00", hover_color="#ef6c00", width=0).pack(side=tk.RIGHT, padx=5)
+        ctk.CTkButton(self.top_frame, text="Data", command=self.open_data_folder, fg_color="gray30", hover_color="gray40", width=0).pack(side=tk.RIGHT, padx=5)
 
         self.main_pane = tk.PanedWindow(
             self.root,

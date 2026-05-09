@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.3] - 2026-05-09
+### Fixed
+* Top Navigation Layout: Resolved a UI issue where the right-aligned action buttons (Major Deletion, Reset Plan, Reset Day, Data) consumed excessive horizontal space, compressing the day selection controls. The buttons now dynamically wrap their text content with minimal padding to ensure proper layout spacing.
+
 ## [1.5.2] - 2026-05-09
 ### Fixed
 * Date Parsing Robustness: Updated the parsing engine in `src/planner.py` to use a more resilient extraction logic that explicitly ignores "Day X" keywords. This ensures the application correctly identifies the calendar date even when "Day" appears before the month in headers.
