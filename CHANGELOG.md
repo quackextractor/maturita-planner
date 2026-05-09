@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2026-05-09
+### Fixed
+* Executable Data Persistence: Resolved an issue where the compiled PyInstaller application would lose saved progress and state upon closing.
+* Path Resolution: Replaced the temporary `sys._MEIPASS` extraction path with `sys.executable` to ensure the internal data folder is generated and read safely alongside the application binary.
+
 ## [1.4.2] - 2026-05-07
 ### Added
 * Hybrid Color-Coding: Reintroduced hand-picked, premium colors for standard subjects (PV, DS, LIT, CJ) and specific metadata keywords (Hard, Medium, Easy, h, iterac) for better visual hierarchy.
