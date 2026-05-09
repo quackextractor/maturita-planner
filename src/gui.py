@@ -271,6 +271,9 @@ class PlannerApp:
         self.days = list(self.logic.state.keys())
         self.current_day = self.logic.get_calculated_today()
 
+        self.lib_task_frames = {}
+        self.lib_task_widgets = {}
+
         self.top_frame = ctk.CTkFrame(self.root, height=50)
         self.top_frame.pack(fill=tk.X, padx=10, pady=10)
 
@@ -378,8 +381,10 @@ class PlannerApp:
         shift_pressed = state & 0x0001
         ctrl_pressed = state & 0x0004
 
+        frames_dict = self.task_frames if self.current_view.get() == "Planner" else getattr(self, 'lib_task_frames', {})
+
         if shift_pressed and self.last_clicked_task_id:
-            last_widget = self.task_frames.get(self.last_clicked_task_id)
+            last_widget = frames_dict.get(self.last_clicked_task_id)
             if last_widget and last_widget.master == widget.master:
                 children = [c for c in widget.master.pack_slaves() if isinstance(c, ctk.CTkFrame) and hasattr(c, 'task_id')]
                 idx1 = next((i for i, c in enumerate(children) if c.task_id == self.last_clicked_task_id), -1)
@@ -402,7 +407,8 @@ class PlannerApp:
         self.update_selection_visuals()
 
     def update_selection_visuals(self):
-        for tid, frame in self.task_frames.items():
+        frames_dict = self.task_frames if self.current_view.get() == "Planner" else getattr(self, 'lib_task_frames', {})
+        for tid, frame in frames_dict.items():
             if tid in self.selected_task_ids:
                 frame.configure(border_color="#00E5FF")
             else:
@@ -476,14 +482,22 @@ class PlannerApp:
                 self.update_timestamp_label()
 
     def _update_task_ui(self, task_id, is_completed):
-        if task_id in self.task_widgets:
-            txt = self.task_widgets[task_id]
-            txt.configure(state="normal")
-            txt.tag_remove("completed", "1.0", tk.END)
-            if is_completed:
-                txt.tag_add("completed", "1.0", tk.END)
-                txt.tag_config("completed", foreground="gray")
-            txt.configure(state="disabled")
+        for widgets_dict in [self.task_widgets, getattr(self, 'lib_task_widgets', {})]:
+            if task_id in widgets_dict:
+                txt = widgets_dict[task_id]
+                txt.configure(state="normal")
+                txt.tag_remove("completed", "1.0", tk.END)
+                if is_completed:
+                    txt.tag_add("completed", "1.0", tk.END)
+                    txt.tag_config("completed", foreground="gray")
+                txt.configure(state="disabled")
+
+        # Also update checkbox in library if it exists
+        lib_frames = getattr(self, 'lib_task_frames', {})
+        if task_id in lib_frames:
+            frame = lib_frames[task_id]
+            if hasattr(frame, 'checkbox_var'):
+                frame.checkbox_var.set(is_completed)
 
     def show_confirmation(self, title, message, on_confirm):
         dialog = ctk.CTkToplevel(self.root)
@@ -585,11 +599,6 @@ class PlannerApp:
 
     def refresh_library(self):
         self.update_timestamp_label()
-        for widget in self.library_scroll_frame.winfo_children():
-            widget.destroy()
-
-        self.task_widgets = {}
-        self.task_frames = {}
 
         self.all_tasks = []
         subjects = set()
@@ -609,7 +618,20 @@ class PlannerApp:
             self.lib_day_combo.configure(values=day_vals)
 
         for t in self.all_tasks:
-            self._create_task_widget(self.library_scroll_frame, t, show_day_badge=True)
+            if t['id'] not in self.lib_task_frames:
+                self._create_task_widget(self.library_scroll_frame, t, show_day_badge=True, frames_dict=self.lib_task_frames, widgets_dict=self.lib_task_widgets)
+            else:
+                frame = self.lib_task_frames[t['id']]
+                if hasattr(frame, 'checkbox_var'):
+                    frame.checkbox_var.set(t['completed'])
+
+                txt = self.lib_task_widgets[t['id']]
+                txt.configure(state="normal")
+                txt.tag_remove("completed", "1.0", tk.END)
+                if t['completed']:
+                    txt.tag_add("completed", "1.0", tk.END)
+                    txt.tag_config("completed", foreground="gray")
+                txt.configure(state="disabled")
 
         self.apply_library_filters()
 
@@ -629,7 +651,7 @@ class PlannerApp:
             if filter_day != "All Days" and t['day_key'] != filter_day:
                 continue
 
-            frame = self.task_frames.get(t['id'])
+            frame = getattr(self, 'lib_task_frames', {}).get(t['id'])
             if frame:
                 frame.pack(fill=tk.X, pady=5, padx=5)
 
@@ -677,7 +699,12 @@ class PlannerApp:
 
         self.update_selection_visuals()
 
-    def _create_task_widget(self, parent, task, show_day_badge=False):
+    def _create_task_widget(self, parent, task, show_day_badge=False, frames_dict=None, widgets_dict=None):
+        if frames_dict is None:
+            frames_dict = self.task_frames
+        if widgets_dict is None:
+            widgets_dict = self.task_widgets
+
         border_col = ("gray70", "gray40")
         if task.get('subject'):
             subj = task['subject'].upper()
@@ -699,7 +726,6 @@ class PlannerApp:
 
         top_row = ctk.CTkFrame(frame, fg_color="transparent")
         top_row.pack(fill=tk.X, expand=True, padx=0, pady=0)
-
         var = tk.BooleanVar(value=task['completed'])
         chk = ctk.CTkCheckBox(top_row, text="", variable=var, width=24, command=lambda t=task['id'], v=var: self.toggle_task(t, v.get()))
         chk.pack(side=tk.LEFT, padx=(10, 5), pady=10)
@@ -727,8 +753,9 @@ class PlannerApp:
                 txt.insert(tk.END, part, "completed" if task['completed'] else None)
 
         txt.configure(state="disabled")
-        self.task_widgets[task['id']] = txt
-        self.task_frames[task['id']] = frame
+        widgets_dict[task['id']] = txt
+        frames_dict[task['id']] = frame
+        frame.checkbox_var = var
 
         badge_row = ctk.CTkFrame(frame, fg_color="transparent")
         badge_row_packed = False

@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.2] - 2026-05-09
+### Fixed
+* Date Parsing Robustness: Updated the parsing engine in `src/planner.py` to use a more resilient extraction logic that explicitly ignores "Day X" keywords. This ensures the application correctly identifies the calendar date even when "Day" appears before the month in headers.
+* Library Widget Caching: Implemented isolated UI caches for the Library view. The application now builds library task widgets only once and updates their internal state (completion, tags, text) dynamically, significantly reducing CPU usage and eliminating UI flickering when switching between views or applying filters.
+
+### Changed
+* Feature Documentation: Refined the "Intelligent Date Matching" description in `README.md` to better reflect the automatic rollover and day-detection capabilities.
+
 ## [1.5.1] - 2026-05-09
 ### Changed
 * Library Performance: Significantly improved the loading and searching speed in the Library view. Implemented a 300ms input debounce and a widget recycling system that toggles visibility instead of destroying and recreating UI elements on every keystroke.

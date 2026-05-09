@@ -68,11 +68,14 @@ class PlannerLogic:
                         seq_int = int(seq_match.group(1))
 
                     try:
-                        month_str_match = re.search(r'([a-zA-Z]+)\s+(\d+)', day_key)
-                        if month_str_match:
-                            m_str = month_str_match.group(1)[:3]
-                            d_int = int(month_str_match.group(2))
-                            date_obj = datetime.datetime.strptime(f"{m_str} {d_int} {global_year}", "%b %d %Y").date()
+                        # Extract all text/number pairs
+                        matches = re.findall(r'([a-zA-ZáčďéěíňóřšťúůýžÁČĎÉĚÍŇÓŘŠŤÚŮÝŽ]+)\s+(\d+)', day_key)
+                        for m_str_full, d_int_str in matches:
+                            if m_str_full.lower() != 'day':
+                                m_str = m_str_full[:3]
+                                d_int = int(d_int_str)
+                                date_obj = datetime.datetime.strptime(f"{m_str} {d_int} {global_year}", "%b %d %Y").date()
+                                break
                     except Exception:
                         pass
 

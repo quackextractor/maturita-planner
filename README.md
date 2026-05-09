@@ -1,7 +1,7 @@
 # Maturita Planner
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.5.1-blue.svg)](https://github.com/quackextractor/maturita-planner)
+[![Version](https://img.shields.io/badge/version-1.5.2-blue.svg)](https://github.com/quackextractor/maturita-planner)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
 A visual drag-and-drop daily planner designed specifically for managing markdown-based study schedules.
@@ -9,7 +9,7 @@ A visual drag-and-drop daily planner designed specifically for managing markdown
 ## Features
 * **Smart Metadata Parsing**: Automatically parses nested details like difficulty, hours, and iterations out of your markdown and turns them into visual, colored UI badges. 
 * **Library View & Mass Selection**: Switch over to the Library to search, filter by tag/subject, and group tasks globally. Use Ctrl-Click and Shift-Click to select multiple blocks at once to complete them or move them across days simultaneously.
-* **Intelligent Date Matching**: The planner reads the global dates in your headers, automatically setting up the correct day on boot and instantly rolling over uncompleted tasks from past days to today.
+* **Intelligent Date Matching**: The planner automatically identifies the current day from your markdown headers on startup. Any uncompleted tasks from past days are instantly rolled over and marked as unassigned tasks for the current day, ensuring your schedule stays up to date.
 * **Hybrid Color-Coding**: Visually identifies the subject of your task based on your headings. Standard subjects (PV, DS, LIT, CJ) and standard badges (Hard, Easy, h, iterac) are assigned specific hand-picked colors. Any unknown custom tags you add will automatically generate their own deterministic colors using math designed specifically to avoid clashing with your primary palette.
 * **Markdown Parsing**: Automatically reads your study blocks and daily routine slots without destroying document context utilizing an Abstract Syntax Tree structure.
 * **Drag and Drop**: Visually drag single or grouped tasks into your daily routine. Tasks float cleanly over the UI for precise placement.
