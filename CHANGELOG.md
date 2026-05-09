@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-05-09
+### Added
+* Library View: A comprehensive new screen to search, filter, and review all tasks across all days.
+* Multi-Selection Engine: Support for standard click, Ctrl-Click, and Shift-Click to select multiple tasks simultaneously.
+* Mass Actions: Checkbox toggling and drag-and-drop operations now apply to all selected tasks concurrently.
+* Day Migration: Introduce a "Move to Day" action bar for selected tasks to shift them permanently between days.
+* Intelligent Date Rollover: The app now extracts the core year and automatically moves incomplete tasks from past days to the current day.
+* Auto-Day Focus: The application auto-detects `today` and immediately opens the relevant day on startup.
+
+### Changed
+* Abstract Syntax Tree Parser: Completely rewrote the markdown reading and writing engine to preserve document integrity when tasks migrate across sections.
+* Top Navigation: Renamed "Open Data Folder" to "Data" to optimize horizontal spacing.
+* Event Binding Architecture: Rebuilt the drag manager to smoothly distinguish between clicking and dragging.
+
 ## [1.4.3] - 2026-05-09
 ### Fixed
 * Executable Data Persistence: Resolved an issue where the compiled PyInstaller application would lose saved progress and state upon closing.

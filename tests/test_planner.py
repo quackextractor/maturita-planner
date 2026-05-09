@@ -21,6 +21,7 @@ def test_planner_logic_init(temp_config):
     planner = PlannerLogic(temp_config)
     assert planner.plan_data == {}
     assert planner.routine_slots == []
+    assert planner.ast == []
     assert os.path.exists(temp_config["data_dir"])
 
 
@@ -32,8 +33,8 @@ def test_load_data_with_files(temp_config):
 
     # Create dummy plan with extra formatting to ensure preservation
     with open(temp_config["active_plan"], "w", encoding="utf-8") as f:
-        f.write("### Plan Title\n")
-        f.write("**Day 1: Math**\n")
+        f.write("### Plan Title 2026\n")
+        f.write("**Day 1: May 07**\n")
         f.write("* [ ] **Linear Algebra**\n")
         f.write("* *Total: 10 hours*\n")
 
@@ -41,10 +42,15 @@ def test_load_data_with_files(temp_config):
     assert len(planner.routine_slots) == 1
     assert planner.routine_slots[0]["time"] == "08:00 to 09:30"
     assert planner.routine_slots[0]["desc"] == "Study Block 1"
-    assert "Day 1: Math" in planner.plan_data
-    assert planner.plan_data["Day 1: Math"][0]["clean_text"] == "**Linear Algebra**"
-    assert planner.plan_data["Day 1: Math"][0]["completed"] is False
-    assert len(planner.plan_lines) == 4
+    assert "Day 1: May 07" in planner.plan_data
+    assert planner.plan_data["Day 1: May 07"][0]["clean_text"] == "**Linear Algebra**"
+    assert planner.plan_data["Day 1: May 07"][0]["completed"] is False
+
+    # Verify AST structure instead of raw lines
+    assert len(planner.ast) == 2
+    assert planner.ast[0]["type"] == "raw"
+    assert planner.ast[1]["type"] == "day_section"
+    assert len(planner.ast[1]["items"]) == 2
 
 
 def test_load_data_with_badges(temp_config):

@@ -1,16 +1,18 @@
 # Maturita Planner
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-1.4.3-blue.svg)](https://github.com/quackextractor/maturita-planner)
+[![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)](https://github.com/quackextractor/maturita-planner)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 
 A visual drag-and-drop daily planner designed specifically for managing markdown-based study schedules.
 
 ## Features
 * **Smart Metadata Parsing**: Automatically parses nested details like difficulty, hours, and iterations out of your markdown and turns them into visual, colored UI badges. 
+* **Library View & Mass Selection**: Switch over to the Library to search, filter by tag/subject, and group tasks globally. Use Ctrl-Click and Shift-Click to select multiple blocks at once to complete them or move them across days simultaneously.
+* **Intelligent Date Matching**: The planner reads the global dates in your headers, automatically setting up the correct day on boot and instantly rolling over uncompleted tasks from past days to today.
 * **Hybrid Color-Coding**: Visually identifies the subject of your task based on your headings. Standard subjects (PV, DS, LIT, CJ) and standard badges (Hard, Easy, h, iterac) are assigned specific hand-picked colors. Any unknown custom tags you add will automatically generate their own deterministic colors using math designed specifically to avoid clashing with your primary palette.
-* **Markdown Parsing**: Automatically reads your study blocks and daily routine slots without destroying document context.
-* **Drag and Drop**: Visually drag tasks into your daily routine. Tasks float cleanly over the UI for precise placement.
+* **Markdown Parsing**: Automatically reads your study blocks and daily routine slots without destroying document context utilizing an Abstract Syntax Tree structure.
+* **Drag and Drop**: Visually drag single or grouped tasks into your daily routine. Tasks float cleanly over the UI for precise placement.
 * **Progress Tracking**: Tick off completed tasks and save your progress visually. State persists across application restarts.
 * **Autosave & Manual Saving**: Automatically saves your progress by default, with an option to toggle autosave off and save manually.
 * **Plan Preservation**: Keeps your original plan intact in an isolated internal folder, preventing accidental data loss if you modify external files.
@@ -44,9 +46,11 @@ To ensure the application correctly parses your subjects and metadata, your task
 
 **Day 2: Friday, May 08**
 * **PV 2:** Algoritmizace - Grafy a prohledávání (Hard, 12 iterací, 2.0h) - Focus: Theory and practical examples/code.
+
 ```
 
 ### 2. `routine.md` Example
+
 This file establishes your daily timetable. The application scans for bolded time slots that include "Study Block" in the description and visually pulls in that description.
 
 ```markdown
@@ -58,11 +62,15 @@ This file establishes your daily timetable. The application scans for bolded tim
 * **09:30 to 11:30**: Study Block 2 (Topic 2).
 * **11:30 to 12:30**: Lunch break.
 * **12:30 to 13:30**: 1 hour outside.
+
 ```
 
 ## Usage
+
 Run the application:
+
 ```bash
 python main.py
+
 ```
 On first launch, the app will ask you to drag and drop your `plan.md` and `routine.md` into the setup window. The app will generate a `data/` folder to save your daily progress without altering your original files.
