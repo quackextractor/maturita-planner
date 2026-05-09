@@ -74,6 +74,7 @@ class DragManager:
         self.start_y = 0
         self.intent_drag = False
         self.potential_widget = None
+        self.dragging_task_ids = set()
 
     def make_draggable(self, handle, widget_to_move, task_data):
         def _on_start(e):
@@ -117,11 +118,18 @@ class DragManager:
             handle._textbox.bind("<ButtonRelease-1>", _on_release)
 
     def on_drag_start(self, event, widget, task_data):
-        if task_data['id'] not in self.app.selected_task_ids:
-            self.app.selected_task_ids = {task_data['id']}
-            self.app.update_selection_visuals()
+        try:
+            if not widget.winfo_exists():
+                return
+        except Exception:
+            return
 
-        selected_count = len(self.app.selected_task_ids)
+        if task_data['id'] in self.app.selected_task_ids:
+            self.dragging_task_ids = self.app.selected_task_ids.copy()
+        else:
+            self.dragging_task_ids = {task_data['id']}
+
+        selected_count = len(self.dragging_task_ids)
 
         self.offset_x = event.x_root - widget.winfo_rootx()
         self.offset_y = event.y_root - widget.winfo_rooty()
@@ -151,9 +159,10 @@ class DragManager:
         proxy_label.pack(expand=True, fill=tk.BOTH, padx=10, pady=10)
 
         self.original_widgets = []
-        for tid in self.app.selected_task_ids:
-            if tid in self.app.task_frames:
-                tw = self.app.task_frames[tid]
+        frames_dict = self.app.task_frames if self.app.current_view.get() == "Planner" else getattr(self.app, 'lib_task_frames', {})
+        for tid in self.dragging_task_ids:
+            if tid in frames_dict:
+                tw = frames_dict[tid]
                 tw.pack_forget()
                 self.original_widgets.append(tw)
 
@@ -190,7 +199,7 @@ class DragManager:
                     break
                 current = current.master
 
-        for tid in self.app.selected_task_ids:
+        for tid in self.dragging_task_ids:
             day_key = self.app._get_day_for_task(tid)
             self.app.logic.update_task(day_key, tid, assigned_slot=slot_id, auto_save=False)
 
@@ -290,8 +299,14 @@ class PlannerApp:
         self.day_combo.pack(side=tk.LEFT, padx=2)
         ctk.CTkButton(self.planner_controls_frame, text=">", width=30, command=self.next_day).pack(side=tk.LEFT, padx=(2, 10))
 
+        self.day_total_label = ctk.CTkLabel(self.planner_controls_frame, text="Total: 0 it (0.0h)", font=("Arial", 12, "italic"))
+        self.day_total_label.pack(side=tk.LEFT, padx=10)
+
         self.save_label = ctk.CTkLabel(self.top_frame, text="Last saved: Never", text_color="gray")
-        self.save_label.pack(side=tk.LEFT, padx=20)
+        self.save_label.pack(side=tk.LEFT, padx=10)
+
+        self.grand_total_label = ctk.CTkLabel(self.top_frame, text="Plan: 0 it (0.0h)", font=("Arial", 13, "bold"), text_color="#1E88E5")
+        self.grand_total_label.pack(side=tk.LEFT, padx=10)
 
         self.autosave_var = tk.BooleanVar(value=True)
         self.autosave_check = ctk.CTkCheckBox(self.top_frame, text="Autosave", variable=self.autosave_var, command=self.toggle_autosave)
@@ -401,7 +416,7 @@ class PlannerApp:
             else:
                 self.selected_task_ids.add(tid)
         else:
-            self.selected_task_ids = {tid}
+            self.selected_task_ids.clear()
 
         self.last_clicked_task_id = tid
         self.update_selection_visuals()
@@ -600,6 +615,9 @@ class PlannerApp:
     def refresh_library(self):
         self.update_timestamp_label()
 
+        g_it, g_hr = self.logic.get_plan_totals()
+        self.grand_total_label.configure(text=f"Plan: {g_it} it ({g_hr:.1f}h)")
+
         self.all_tasks = []
         subjects = set()
         for day_key, tasks in self.logic.state.items():
@@ -664,6 +682,12 @@ class PlannerApp:
             return
 
         self.update_timestamp_label()
+
+        g_it, g_hr = self.logic.get_plan_totals()
+        self.grand_total_label.configure(text=f"Plan: {g_it} it ({g_hr:.1f}h)")
+
+        d_it, d_hr = self.logic.get_day_totals(self.current_day)
+        self.day_total_label.configure(text=f"Total: {d_it} it ({d_hr:.1f}h)")
 
         for widget in self.left_frame.winfo_children():
             widget.destroy()

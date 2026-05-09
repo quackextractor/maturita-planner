@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.2] - 2026-05-09
+### Fixed
+* Independent Dragging: Dragging a task that is not part of the current selection now correctly moves only that task, without altering or triggering the global selection state.
+* UI Stability: Added existence checks for widgets during drag initiation to prevent `TclError` (bad window path) when background file changes trigger a UI refresh during user interaction.
+
+## [1.6.1] - 2026-05-09
+### Changed
+* Refined Selection UX: Restricted task selection to `Ctrl+Click` and `Shift+Click` only. Regular clicks now clear the current selection, preventing accidental mass movements or unintended selection states during normal interaction.
+
+## [1.6.0] - 2026-05-09
+### Added
+* Dynamic Totals Calculation: The application now automatically parses study block metadata (iterations and hours) to calculate daily and grand totals.
+* Real-time Total Display: Added "Total" and "Plan" metric labels to the top navigation bar that update instantly when tasks are moved or modified.
+* Total Persistence: The `plan.md` file now automatically includes and updates `* *Total: X iterací (Y hours)*` lines for each day section.
+
 ## [1.5.3] - 2026-05-09
 ### Fixed
 * Top Navigation Layout: Resolved a UI issue where the right-aligned action buttons (Major Deletion, Reset Plan, Reset Day, Data) consumed excessive horizontal space, compressing the day selection controls. The buttons now dynamically wrap their text content with minimal padding to ensure proper layout spacing.

@@ -148,6 +148,38 @@ class PlannerLogic:
         if os.path.exists(self.config["active_plan"]):
             self.last_saved_mtime = os.path.getmtime(self.config["active_plan"])
 
+    def _parse_task_metrics(self, task):
+        iterations = 0
+        hours = 0.0
+        for badge in task.get('badges', []):
+            it_match = re.search(r'(\d+)\s*iterac', badge, re.IGNORECASE)
+            if it_match:
+                iterations += int(it_match.group(1))
+
+            hr_match = re.search(r'([\d.]+)\s*h', badge, re.IGNORECASE)
+            if hr_match:
+                hours += float(hr_match.group(1))
+        return iterations, hours
+
+    def get_day_totals(self, day_key):
+        total_it = 0
+        total_hr = 0.0
+        tasks = self.state.get(day_key, [])
+        for t in tasks:
+            it, hr = self._parse_task_metrics(t)
+            total_it += it
+            total_hr += hr
+        return total_it, total_hr
+
+    def get_plan_totals(self):
+        grand_it = 0
+        grand_hr = 0.0
+        for dk in self.state:
+            it, hr = self.get_day_totals(dk)
+            grand_it += it
+            grand_hr += hr
+        return grand_it, grand_hr
+
     def _sync_state_from_ast(self):
         self.state = {}
         self.plan_data = {}
@@ -240,6 +272,26 @@ class PlannerLogic:
                 plan_lines.append(block['text'])
             elif block['type'] == 'day_section':
                 plan_lines.append(block['header'])
+
+                # Update or insert the total line in items
+                total_it, total_hr = self.get_day_totals(block['day_key'])
+                total_str = f"* *Total: {total_it} iterací ({total_hr:.1f} hours)*\n"
+
+                has_total = False
+                new_items = []
+                for item in block['items']:
+                    if item['type'] == 'raw' and "* *Total:" in item['text']:
+                        item['text'] = total_str
+                        has_total = True
+                    new_items.append(item)
+
+                if not has_total:
+                    # Insert after the header (or at the beginning of items)
+                    new_items.insert(0, {'type': 'raw', 'text': "\n"})
+                    new_items.insert(1, {'text': total_str, 'type': 'raw'})
+
+                block['items'] = new_items
+
                 for item in block['items']:
                     if item['type'] == 'raw':
                         plan_lines.append(item['text'])

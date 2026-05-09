@@ -102,3 +102,35 @@ def test_last_saved_mtime_update(temp_config):
 
     assert planner.last_saved_mtime > initial_mtime
     assert planner.last_saved_mtime == os.path.getmtime(temp_config["active_plan"])
+
+
+def test_totals_calculation(temp_config):
+    with open(temp_config["active_plan"], "w", encoding="utf-8") as f:
+        f.write("**Day 1: Math**\n")
+        f.write("* [ ] **PV 1:** Task 1 (Hard, 10 iterací, 2.0h)\n")
+        f.write("* [ ] **DS 1:** Task 2 (Easy, 5 iterací, 1.0h)\n")
+        f.write("**Day 2: Physics**\n")
+        f.write("* [ ] **PHY 1:** Task 3 (Medium, 8 iterací, 1.5h)\n")
+
+    planner = PlannerLogic(temp_config)
+
+    # Test day totals
+    it1, hr1 = planner.get_day_totals("Day 1: Math")
+    assert it1 == 15
+    assert hr1 == 3.0
+
+    it2, hr2 = planner.get_day_totals("Day 2: Physics")
+    assert it2 == 8
+    assert hr2 == 1.5
+
+    # Test plan totals
+    grand_it, grand_hr = planner.get_plan_totals()
+    assert grand_it == 23
+    assert grand_hr == 4.5
+
+    # Test file persistence of totals
+    planner.save_plan()
+    with open(temp_config["active_plan"], "r", encoding="utf-8") as f:
+        content = f.read()
+        assert "* *Total: 15 iterací (3.0 hours)*" in content
+        assert "* *Total: 8 iterací (1.5 hours)*" in content
