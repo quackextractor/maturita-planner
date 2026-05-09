@@ -218,6 +218,7 @@ class PlannerApp:
         self.slot_frames = {}
         self.selected_task_ids = set()
         self.last_clicked_task_id = None
+        self._search_timer = None
 
         self.setup_ui()
         self.check_file_changes()
@@ -268,25 +269,7 @@ class PlannerApp:
 
     def load_main_interface(self):
         self.days = list(self.logic.state.keys())
-        today = datetime.date.today()
-        matched_day = None
-
-        for b in self.logic.ast:
-            if b['type'] == 'day_section' and b['date'] == today:
-                matched_day = b['day_key']
-                break
-
-        if matched_day:
-            self.current_day = matched_day
-        elif self.days:
-            for d in self.days:
-                if any(not t['completed'] for t in self.logic.state[d]):
-                    self.current_day = d
-                    break
-            if not self.current_day:
-                self.current_day = self.days[0]
-        else:
-            self.current_day = None
+        self.current_day = self.logic.get_calculated_today()
 
         self.top_frame = ctk.CTkFrame(self.root, height=50)
         self.top_frame.pack(fill=tk.X, padx=10, pady=10)
@@ -295,7 +278,7 @@ class PlannerApp:
         self.view_seg = ctk.CTkSegmentedButton(self.top_frame, values=["Planner", "Library"], variable=self.current_view, command=self.switch_view)
         self.view_seg.pack(side=tk.LEFT, padx=10)
 
-        self.day_var = tk.StringVar(value=self.current_day)
+        self.day_var = tk.StringVar(value=self.current_day if self.current_day else "")
         self.planner_controls_frame = ctk.CTkFrame(self.top_frame, fg_color="transparent")
         self.planner_controls_frame.pack(side=tk.LEFT)
 
@@ -352,11 +335,11 @@ class PlannerApp:
         self.lib_day_var = tk.StringVar(value="All Days")
 
         ctk.CTkEntry(self.library_filters_frame, textvariable=self.lib_search_var, placeholder_text="Search...").pack(side=tk.LEFT, padx=5, pady=5, expand=True, fill=tk.X)
-        self.lib_subj_combo = ctk.CTkComboBox(self.library_filters_frame, variable=self.lib_subj_var, values=["All Subjects"], command=lambda _: self.refresh_library())
+        self.lib_subj_combo = ctk.CTkComboBox(self.library_filters_frame, variable=self.lib_subj_var, values=["All Subjects"], command=lambda _: self.apply_library_filters())
         self.lib_subj_combo.pack(side=tk.LEFT, padx=5, pady=5)
-        self.lib_day_combo = ctk.CTkComboBox(self.library_filters_frame, variable=self.lib_day_var, values=["All Days"], command=lambda _: self.refresh_library())
+        self.lib_day_combo = ctk.CTkComboBox(self.library_filters_frame, variable=self.lib_day_var, values=["All Days"], command=lambda _: self.apply_library_filters())
         self.lib_day_combo.pack(side=tk.LEFT, padx=5, pady=5)
-        self.lib_search_var.trace_add("write", lambda *args: self.refresh_library())
+        self.lib_search_var.trace_add("write", self._on_search_changed)
 
         self.library_scroll_frame = AutoScrollableFrame(self.library_container, label_text="All Study Blocks")
         self.library_scroll_frame.pack(fill=tk.BOTH, expand=True)
@@ -368,6 +351,11 @@ class PlannerApp:
         ctk.CTkButton(self.action_bar, text="Move to Day...", command=self.prompt_move_to_day, fg_color="#0D47A1", hover_color="#1565C0").pack(side=tk.RIGHT, padx=15, pady=10)
 
         self.refresh_ui()
+
+    def _on_search_changed(self, *args):
+        if self._search_timer:
+            self.root.after_cancel(self._search_timer)
+        self._search_timer = self.root.after(300, self.apply_library_filters)
 
     def switch_view(self, choice):
         self.selected_task_ids.clear()
@@ -393,7 +381,7 @@ class PlannerApp:
         if shift_pressed and self.last_clicked_task_id:
             last_widget = self.task_frames.get(self.last_clicked_task_id)
             if last_widget and last_widget.master == widget.master:
-                children = [c for c in widget.master.winfo_children() if isinstance(c, ctk.CTkFrame) and hasattr(c, 'task_id')]
+                children = [c for c in widget.master.pack_slaves() if isinstance(c, ctk.CTkFrame) and hasattr(c, 'task_id')]
                 idx1 = next((i for i, c in enumerate(children) if c.task_id == self.last_clicked_task_id), -1)
                 idx2 = next((i for i, c in enumerate(children) if c.task_id == tid), -1)
                 if idx1 != -1 and idx2 != -1:
@@ -523,9 +511,8 @@ class PlannerApp:
                 if current_mtime > self.logic.last_saved_mtime:
                     self.logic.load_data()
                     self.days = list(self.logic.state.keys())
-                    if self.current_day not in self.days and self.days:
-                        self.current_day = self.days[0]
-                    self.day_var.set(self.current_day)
+                    self.current_day = self.logic.get_calculated_today()
+                    self.day_var.set(self.current_day if self.current_day else "")
                     if hasattr(self, 'day_combo'):
                         self.day_combo.configure(values=self.days)
                     if self.current_view.get() == "Planner":
@@ -604,12 +591,12 @@ class PlannerApp:
         self.task_widgets = {}
         self.task_frames = {}
 
-        all_tasks = []
+        self.all_tasks = []
         subjects = set()
         for day_key, tasks in self.logic.state.items():
             for t in tasks:
                 t['day_key'] = day_key
-                all_tasks.append(t)
+                self.all_tasks.append(t)
                 if t.get('subject'):
                     subjects.add(t['subject'])
 
@@ -621,18 +608,30 @@ class PlannerApp:
         if self.lib_day_combo.cget("values") != day_vals:
             self.lib_day_combo.configure(values=day_vals)
 
+        for t in self.all_tasks:
+            self._create_task_widget(self.library_scroll_frame, t, show_day_badge=True)
+
+        self.apply_library_filters()
+
+    def apply_library_filters(self):
         search_q = self.lib_search_var.get().lower()
         filter_subj = self.lib_subj_var.get()
         filter_day = self.lib_day_var.get()
 
-        for t in all_tasks:
+        for widget in self.library_scroll_frame.winfo_children():
+            widget.pack_forget()
+
+        for t in getattr(self, 'all_tasks', []):
             if search_q and search_q not in t['display_text'].lower() and search_q not in t.get('subject', '').lower():
                 continue
             if filter_subj != "All Subjects" and t.get('subject') != filter_subj:
                 continue
             if filter_day != "All Days" and t['day_key'] != filter_day:
                 continue
-            self._create_task_widget(self.library_scroll_frame, t, show_day_badge=True)
+
+            frame = self.task_frames.get(t['id'])
+            if frame:
+                frame.pack(fill=tk.X, pady=5, padx=5)
 
         self.update_selection_visuals()
 

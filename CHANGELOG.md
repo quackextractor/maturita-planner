@@ -4,6 +4,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-05-09
+### Changed
+* Library Performance: Significantly improved the loading and searching speed in the Library view. Implemented a 300ms input debounce and a widget recycling system that toggles visibility instead of destroying and recreating UI elements on every keystroke.
+
+### Fixed
+* Rollover Synchronization: Fixed a bug where the UI and the data layer calculated the current day independently. The application now uses a centralized calculation to ensure the UI correctly focuses on the day receiving rolled-over tasks.
+* Date Parsing Robustness: Resolved an issue where task rollover could silently fail if system language differences prevented datetime parsing. The engine now safely falls back to extracting the day sequence integer directly from the markdown header (e.g., "Day 1") to guarantee chronological forwarding.
+
 ## [1.5.0] - 2026-05-09
 ### Added
 * Library View: A comprehensive new screen to search, filter, and review all tasks across all days.

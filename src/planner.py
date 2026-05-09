@@ -61,6 +61,12 @@ class PlannerLogic:
 
                     day_key = day_match.group(1)
                     date_obj = None
+                    seq_int = None
+
+                    seq_match = re.search(r'Day\s+(\d+)', day_key, re.IGNORECASE)
+                    if seq_match:
+                        seq_int = int(seq_match.group(1))
+
                     try:
                         month_str_match = re.search(r'([a-zA-Z]+)\s+(\d+)', day_key)
                         if month_str_match:
@@ -75,6 +81,7 @@ class PlannerLogic:
                         'day_key': day_key,
                         'header': line,
                         'date': date_obj,
+                        'seq_int': seq_int,
                         'items': []
                     }
                     continue
@@ -151,6 +158,27 @@ class PlannerLogic:
                         self.state[dk].append(item['data'])
                         self.plan_data[dk].append(item['data'])
 
+    def get_calculated_today(self):
+        if not self.ast:
+            return None
+
+        today = datetime.date.today()
+
+        for block in self.ast:
+            if block['type'] == 'day_section' and block['date'] == today:
+                return block['day_key']
+
+        first_day_key = None
+        for block in self.ast:
+            if block['type'] == 'day_section':
+                if not first_day_key:
+                    first_day_key = block['day_key']
+                for item in block['items']:
+                    if item['type'] == 'task' and not item['data']['completed']:
+                        return block['day_key']
+
+        return first_day_key
+
     def rollover_expired_tasks(self):
         today = datetime.date.today()
         target_block = None
@@ -178,7 +206,13 @@ class PlannerLogic:
         tasks_moved = False
         for block in self.ast:
             if block['type'] == 'day_section' and block != target_block:
-                if block['date'] and target_block['date'] and block['date'] < target_block['date']:
+                is_before = False
+                if block['date'] and target_block['date']:
+                    is_before = block['date'] < target_block['date']
+                elif block.get('seq_int') is not None and target_block.get('seq_int') is not None:
+                    is_before = block['seq_int'] < target_block['seq_int']
+
+                if is_before:
                     items_to_keep = []
                     for item in block['items']:
                         if item['type'] == 'task' and not item['data']['completed']:
